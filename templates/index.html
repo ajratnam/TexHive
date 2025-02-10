@@ -14,9 +14,19 @@
         <div class="w-1/2 p-4">
             <h1 class="text-2xl font-bold mb-2">LaTeX Editor</h1>
             <div id="editor" class="border rounded-lg h-[80vh]"></div>
-            <button onclick="compileLatex()" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded">
-                Compile & Preview
-            </button>
+
+            <div class="mt-4 flex items-center">
+                <button onclick="compileLatex()" class="px-4 py-2 bg-blue-500 text-white rounded mr-4">
+                    Compile & Preview
+                </button>
+                <label class="flex items-center space-x-2 cursor-pointer">
+                    <input type="checkbox" id="realtime-toggle" class="hidden" onchange="toggleRealtime()">
+                    <div class="w-10 h-5 bg-gray-300 rounded-full relative transition-all duration-300">
+                        <div class="w-4 h-4 bg-white rounded-full shadow absolute top-0.5 left-0.5 transition-all duration-300" id="toggle-indicator"></div>
+                    </div>
+                    <span class="text-gray-700">Realtime</span>
+                </label>
+            </div>
         </div>
 
         <!-- PDF Preview -->
@@ -29,6 +39,8 @@
     <script>
         var socket = io();
         var editor;
+        let compileTimeout;
+        let realtimeEnabled = false;
 
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.0/min/vs' }});
         require(['vs/editor/editor.main'], function() {
@@ -40,11 +52,19 @@
 
             editor.getModel().onDidChangeContent(() => {
                 socket.emit("update_text", { content: editor.getValue() });
+                if (realtimeEnabled) {
+                    clearTimeout(compileTimeout);
+                    compileTimeout = setTimeout(compileLatex, 1000); // Auto-compile after 1s delay
+                }
             });
 
-            socket.emit("update_text", { content: editor.getValue() });
-            compileLatex();
+            updateNow();
         });
+
+        function updateNow(){
+            socket.emit("update_text", { content: editor.getValue() });
+            socket.emit("compile_latex");
+        }
 
         socket.on("update_text", function(data) {
             if (editor.getValue() !== data.content) {
@@ -53,12 +73,28 @@
         });
 
         function compileLatex() {
-            socket.emit("compile_latex");
+            if (realtimeEnabled || event?.type === 'click') {
+                socket.emit("compile_latex");
+            }
         }
 
         socket.on("compilation_done", function() {
-            document.getElementById("pdf-viewer").src = "/pdf";
+            let viewer = document.getElementById("pdf-viewer");
+            viewer.src = "/pdf?ts=" + new Date().getTime(); // Force refresh without full reload
         });
+
+        function toggleRealtime() {
+            realtimeEnabled = document.getElementById("realtime-toggle").checked;
+            let indicator = document.getElementById("toggle-indicator");
+            if (realtimeEnabled) {
+                indicator.classList.add("translate-x-5", "bg-green-500");
+                indicator.classList.remove("bg-white");
+                updateNow();
+            } else {
+                indicator.classList.remove("translate-x-5", "bg-green-500");
+                indicator.classList.add("bg-white");
+            }
+        }
     </script>
 </body>
 </html>

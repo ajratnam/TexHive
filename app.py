@@ -1,4 +1,4 @@
-from flask import Flask, render_template, send_file
+from flask import Flask, render_template, send_file, Response
 from flask_socketio import SocketIO, emit
 import os
 import subprocess
@@ -20,13 +20,19 @@ def index():
 @app.route('/pdf')
 def serve_pdf():
     pdf_path = os.path.join(TEMP_DIR, "document.pdf")
-    return send_file(pdf_path, mimetype="application/pdf")
+
+    with open(pdf_path, "rb") as pdf_file:
+        response = Response(pdf_file.read(), mimetype="application/pdf")
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
 
 
 @socketio.on('update_text')
 def handle_text_update(data):
     document_content["document.tex"] = data['content']
-    emit('update_text', data, broadcast=True, include_self=False)  # Avoid self-reset
+    emit('update_text', data, broadcast=True, include_self=False)
 
 
 @socketio.on('compile_latex')
