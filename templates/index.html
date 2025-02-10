@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overleaf Clone</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.0/min/vs/loader.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="flex h-screen">
+        <!-- Editor -->
+        <div class="w-1/2 p-4">
+            <h1 class="text-2xl font-bold mb-2">LaTeX Editor</h1>
+            <div id="editor" class="border rounded-lg h-[80vh]"></div>
+            <button onclick="compileLatex()" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded">
+                Compile & Preview
+            </button>
+        </div>
+
+        <!-- PDF Preview -->
+        <div class="w-1/2 p-4">
+            <h1 class="text-2xl font-bold mb-2">PDF Preview</h1>
+            <iframe id="pdf-viewer" class="border rounded-lg w-full h-[80vh]"></iframe>
+        </div>
+    </div>
+
+    <script>
+        var socket = io();
+        var editor;
+
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.0/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            editor = monaco.editor.create(document.getElementById('editor'), {
+                value: '\\documentclass{article}\n\\begin{document}\nHello, LaTeX!\n\\end{document}',
+                language: 'latex',
+                theme: 'vs-dark'
+            });
+
+            editor.getModel().onDidChangeContent(() => {
+                socket.emit("update_text", { content: editor.getValue() });
+            });
+        });
+
+        socket.on("update_text", function(data) {
+            if (editor.getValue() !== data.content) {
+                editor.executeEdits(null, [{ range: editor.getModel().getFullModelRange(), text: data.content }]);
+            }
+        });
+
+        function compileLatex() {
+            socket.emit("compile_latex");
+        }
+
+        socket.on("compilation_done", function() {
+            document.getElementById("pdf-viewer").src = "/pdf";
+        });
+    </script>
+</body>
+</html>
