@@ -7,32 +7,41 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.0/min/vs/loader.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/split.js/1.6.5/split.min.js"></script>
 </head>
-<body class="bg-gray-100">
-    <div class="flex h-screen">
-        <!-- Editor -->
-        <div class="w-1/2 p-4">
-            <h1 class="text-2xl font-bold mb-2">LaTeX Editor</h1>
-            <div id="editor" class="border rounded-lg h-[80vh]"></div>
-
-            <div class="mt-4 flex items-center">
-                <button onclick="compileLatex()" class="px-4 py-2 bg-blue-500 text-white rounded mr-4">
+<body class="bg-gray-900 text-white">
+    <div class="flex flex-col h-screen">
+        <!-- Header -->
+        <div class="p-4 bg-gray-800 flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Overleaf Clone</h1>
+            <div class="flex space-x-4">
+                <button onclick="compileLatex()" class="px-4 py-2 bg-blue-500 text-white rounded">
                     Compile & Preview
                 </button>
                 <label class="flex items-center space-x-2 cursor-pointer">
                     <input type="checkbox" id="realtime-toggle" class="hidden" onchange="toggleRealtime()">
-                    <div class="w-10 h-5 bg-gray-300 rounded-full relative transition-all duration-300">
+                    <div class="w-10 h-5 bg-gray-600 rounded-full relative transition-all duration-300">
                         <div class="w-4 h-4 bg-white rounded-full shadow absolute top-0.5 left-0.5 transition-all duration-300" id="toggle-indicator"></div>
                     </div>
-                    <span class="text-gray-700">Realtime</span>
+                    <span class="text-gray-300">Realtime</span>
                 </label>
             </div>
         </div>
 
-        <!-- PDF Preview -->
-        <div class="w-1/2 p-4">
-            <h1 class="text-2xl font-bold mb-2">PDF Preview</h1>
-            <iframe id="pdf-viewer" class="border rounded-lg w-full h-[80vh]"></iframe>
+        <!-- Split Layout -->
+        <div id="split-container" class="flex flex-grow">
+            <!-- Editor -->
+            <div id="editor-container" class="w-1/2 p-4">
+                <h2 class="text-lg mb-2">LaTeX Editor</h2>
+                <div id="editor" class="border rounded-lg h-[75vh]"></div>
+                <p id="compile-status" class="text-sm text-gray-400 mt-2"></p>
+            </div>
+
+            <!-- PDF Preview -->
+            <div id="pdf-container" class="w-1/2 p-4">
+                <h2 class="text-lg mb-2">PDF Preview</h2>
+                <iframe id="pdf-viewer" class="border rounded-lg w-full h-[75vh]"></iframe>
+            </div>
         </div>
     </div>
 
@@ -75,12 +84,14 @@
         function compileLatex() {
             if (realtimeEnabled || event?.type === 'click') {
                 socket.emit("compile_latex");
+                document.getElementById("compile-status").textContent = "Compiling...";
             }
         }
 
-        socket.on("compilation_done", function() {
+        socket.on("compilation_done", function(data) {
             let viewer = document.getElementById("pdf-viewer");
             viewer.src = "/pdf?ts=" + new Date().getTime(); // Force refresh without full reload
+            document.getElementById("compile-status").textContent = "Compiled Successfully";
         });
 
         function toggleRealtime() {
@@ -95,6 +106,9 @@
                 indicator.classList.add("bg-white");
             }
         }
+
+        // Split.js for Resizable Layout
+        Split(['#editor-container', '#pdf-container'], { sizes: [50, 50], minSize: 300 });
     </script>
 </body>
 </html>

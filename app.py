@@ -1,4 +1,4 @@
-from flask import Flask, render_template, send_file, Response
+from flask import Flask, render_template, send_file, Response, request
 from flask_socketio import SocketIO, emit
 import os
 import subprocess
@@ -20,6 +20,8 @@ def index():
 @app.route('/pdf')
 def serve_pdf():
     pdf_path = os.path.join(TEMP_DIR, "document.pdf")
+    if not os.path.exists(pdf_path):
+        return "No PDF available", 404
 
     with open(pdf_path, "rb") as pdf_file:
         response = Response(pdf_file.read(), mimetype="application/pdf")
@@ -42,10 +44,14 @@ def compile_latex():
     with open(tex_file, "w") as f:
         f.write(document_content["document.tex"])
 
-    subprocess.run(["pdflatex", "-interaction=nonstopmode", "-output-directory=" + TEMP_DIR, tex_file],
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    process = subprocess.run(
+        ["pdflatex", "-interaction=nonstopmode", "-output-directory=" + TEMP_DIR, tex_file],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
 
-    emit('compilation_done', {'status': 'success'}, broadcast=True)
+    logs = process.stdout.decode() + process.stderr.decode()
+
+    emit('compilation_done', {'status': 'success', 'logs': logs}, broadcast=True)
 
 
 if __name__ == '__main__':
