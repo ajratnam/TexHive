@@ -141,10 +141,35 @@
 
     // Update the PDF viewer when compilation is done.
     socket.on('compilation_done', function(data) {
-      let viewer = document.getElementById('pdf-viewer');
-      // Preserve #toolbar=0 while forcing a refresh.
-      viewer.src = '/pdf?ts=' + new Date().getTime() + '#toolbar=0';
+      var pdfContainer = document.getElementById('pdf-container');
+
+      if (data.status === 'success') {
+        // Restore the PDF iframe if it doesn't exist.
+        if (!document.getElementById('pdf-viewer')) {
+          pdfContainer.innerHTML = '<iframe id="pdf-viewer" src="/pdf#toolbar=0" style="width: 100%; height: 100%; border: none;"></iframe>';
+        }
+        // Refresh the PDF viewer.
+        document.getElementById('pdf-viewer').src = '/pdf?ts=' + new Date().getTime() + '#toolbar=0';
+      } else {
+        // If an error occurred, display the error message in a scrollable container.
+        pdfContainer.innerHTML = `
+          <div style="
+              height: 100%;
+              width: 100%;
+              box-sizing: border-box;
+              padding: 20px;
+              overflow-y: auto;
+              color: #ffaaaa;
+              font-family: monospace;
+              background: #1e1e1e;
+          ">
+            <h2 style="color: #ff5555;">Compilation Error</h2>
+            <pre style="white-space: pre-wrap;">${data.logs}</pre>
+          </div>
+        `;
+      }
     });
+
 
     // Toggle realtime compilation.
     function toggleRealtime() {

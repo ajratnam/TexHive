@@ -51,7 +51,13 @@ def compile_latex():
 
     logs = process.stdout.decode() + process.stderr.decode()
 
-    emit('compilation_done', {'status': 'success', 'logs': logs}, broadcast=True)
+    # Check if pdflatex returned an error.
+    if process.returncode != 0:
+        status = "error"
+    else:
+        status = "success"
+
+    emit('compilation_done', {'status': status, 'logs': logs}, broadcast=True)
 
 
 if __name__ == '__main__':
