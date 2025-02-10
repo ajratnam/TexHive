@@ -6,11 +6,9 @@ import subprocess
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Ensure 'temp' directory exists
 TEMP_DIR = "temp"
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-# Store document state
 document_content = {"document.tex": ""}
 
 
@@ -38,7 +36,8 @@ def compile_latex():
     with open(tex_file, "w") as f:
         f.write(document_content["document.tex"])
 
-    subprocess.run(["pdflatex", "-interaction=nonstopmode", "-output-directory=" + TEMP_DIR, tex_file])
+    subprocess.run(["pdflatex", "-interaction=nonstopmode", "-output-directory=" + TEMP_DIR, tex_file],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     emit('compilation_done', {'status': 'success'}, broadcast=True)
 
