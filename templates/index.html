@@ -20,25 +20,82 @@
   <!-- TailwindCSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* Ensure the page uses the full viewport with no extra margins */
+    /* Default (Dark) Theme Variables */
+    :root {
+      --bg-color: #1e1e1e;
+      --header-color: #2d2d2d;
+      --text-color: #ffffff;
+      --gutter-color: rgba(255, 255, 255, 0.1);
+    }
+    /* Light Theme */
+    .light-theme {
+      --bg-color: #ffffff;
+      --header-color: #f3f3f3;
+      --text-color: #000000;
+      --gutter-color: rgba(0, 0, 0, 0.1);
+    }
+    /* Solarized Theme */
+    .solarized-theme {
+      --bg-color: #002b36;
+      --header-color: #073642;
+      --text-color: #839496;
+      --gutter-color: rgba(131, 148, 150, 0.2);
+    }
+    /* Dracula Theme */
+    .dracula-theme {
+      --bg-color: #282a36;
+      --header-color: #44475a;
+      --text-color: #f8f8f2;
+      --gutter-color: rgba(98, 114, 164, 0.2);
+    }
+    /* Monokai Theme */
+    .monokai-theme {
+      --bg-color: #272822;
+      --header-color: #383830;
+      --text-color: #f8f8f2;
+      --gutter-color: rgba(248, 248, 242, 0.1);
+    }
+    /* Nord Theme */
+    .nord-theme {
+      --bg-color: #2e3440;
+      --header-color: #3b4252;
+      --text-color: #d8dee9;
+      --gutter-color: rgba(216, 222, 233, 0.2);
+    }
+    /* Gruvbox Theme */
+    .gruvbox-theme {
+      --bg-color: #282828;
+      --header-color: #3c3836;
+      --text-color: #ebdbb2;
+      --gutter-color: rgba(235, 219, 178, 0.2);
+    }
+    /* Cobalt Theme */
+    .cobalt-theme {
+      --bg-color: #002240;
+      --header-color: #00335d;
+      --text-color: #ffffff;
+      --gutter-color: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Global Styles */
     body, html {
       margin: 0;
       padding: 0;
       height: 100%;
-      background: #1e1e1e;
+      background: var(--bg-color);
+      color: var(--text-color);
     }
-    /* Header styling */
     header {
-      background: #2d2d2d;
+      background: var(--header-color);
     }
     /* The split container occupies all space below the header */
     #split-container {
       display: flex;
-      height: calc(100vh - 56px); /* Adjust this value to match your header's height */
+      height: calc(100vh - 56px);
     }
     /* Both panes share the same background for a unified look */
     .pane {
-      background: #1e1e1e;
+      background: var(--bg-color);
       overflow: hidden;
       position: relative;
     }
@@ -50,7 +107,7 @@
     }
     /* Subtle Split.js gutter styling */
     .gutter {
-      background-color: rgba(255, 255, 255, 0.1);
+      background-color: var(--gutter-color);
       cursor: col-resize;
       width: 5px;
       z-index: 10;
@@ -59,23 +116,51 @@
     .gutter:hover {
       background-color: rgba(255, 255, 255, 0.2);
     }
+    /* Style for theme selector in header */
+    /* Theme-aware dropdown styling */
+#theme-selector {
+  background: var(--header-color);
+  border: 1px solid var(--text-color);
+  color: var(--text-color);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  transition: background 0.3s ease, color 0.3s ease, border 0.3s ease;
+}
+
+/* Ensure dropdown options are also styled */
+#theme-selector option {
+  background: var(--bg-color);
+  color: var(--text-color);
+}
   </style>
 </head>
-<body class="text-white">
+<body>
   <!-- Header -->
   <header class="flex items-center justify-between px-4 py-3">
     <h1 class="text-2xl font-bold">Overleaf Clone</h1>
-    <div class="flex space-x-4">
+    <div class="flex items-center space-x-4">
       <button onclick="compileLatex()" class="px-4 py-2 bg-blue-500 text-white rounded">
-        Compile & Preview
+        Compile &amp; Preview
       </button>
       <label class="flex items-center space-x-2 cursor-pointer">
         <input type="checkbox" id="realtime-toggle" class="hidden" onchange="toggleRealtime()">
         <div class="w-10 h-5 bg-gray-600 rounded-full relative transition-all duration-300">
           <div id="toggle-indicator" class="w-4 h-4 bg-white rounded-full shadow absolute top-0.5 left-0.5 transition-all duration-300"></div>
         </div>
-        <span class="text-gray-300">Realtime</span>
+        <!-- Removed Tailwind hardcoded text color in favor of CSS variable -->
+        <span style="color: var(--text-color)">Realtime</span>
       </label>
+      <!-- Theme Selection -->
+      <select id="theme-selector">
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+        <option value="solarized">Solarized</option>
+        <option value="dracula">Dracula</option>
+        <option value="monokai">Monokai</option>
+        <option value="nord">Nord</option>
+        <option value="gruvbox">Gruvbox</option>
+        <option value="cobalt">Cobalt</option>
+      </select>
     </div>
   </header>
 
@@ -85,7 +170,6 @@
     <div id="editor-container" class="pane"></div>
     <!-- PDF Viewer Pane -->
     <div id="pdf-container" class="pane">
-      <!-- The #toolbar=0 parameter hides the built-in toolbar in many browsers -->
       <iframe id="pdf-viewer" src="/pdf#toolbar=0"></iframe>
     </div>
   </div>
@@ -96,6 +180,145 @@
     var editor;
     let compileTimeout;
     let realtimeEnabled = false;
+
+    // Function to update Monaco Editor theme based on selected theme.
+    function updateEditorTheme(theme) {
+      if (!editor) return;
+      if (theme === 'light') {
+        monaco.editor.setTheme('vs');
+      } else if (theme === 'solarized') {
+        monaco.editor.defineTheme('solarized', {
+          base: 'vs-dark',
+          inherit: true,
+          rules: [
+            { token: '', foreground: '839496', background: '002b36' },
+            { token: 'keyword', foreground: '268bd2' },
+            { token: 'comment', foreground: '586e75' },
+            { token: 'string', foreground: '2aa198' },
+            // Fix delimiter (curly braces) color for solarized:
+            { token: 'delimiter', foreground: '93a1a1' }
+          ],
+          colors: {
+            'editor.background': '#002b36'
+          }
+        });
+        monaco.editor.setTheme('solarized');
+      } else if (theme === 'dracula') {
+        monaco.editor.defineTheme('dracula', {
+          base: 'vs-dark',
+          inherit: true,
+          rules: [
+            { token: '', foreground: 'f8f8f2', background: '282a36' },
+            { token: 'keyword', foreground: 'ff79c6' },
+            { token: 'comment', foreground: '6272a4' },
+            { token: 'string', foreground: 'f1fa8c' },
+            { token: 'delimiter', foreground: '8be9fd' }
+          ],
+          colors: {
+            'editor.background': '#282a36'
+          }
+        });
+        monaco.editor.setTheme('dracula');
+      } else if (theme === 'monokai') {
+        monaco.editor.defineTheme('monokai', {
+          base: 'vs-dark',
+          inherit: true,
+          rules: [
+            { token: '', foreground: 'f8f8f2', background: '272822' },
+            { token: 'keyword', foreground: 'f92672' },
+            { token: 'comment', foreground: '75715e' },
+            { token: 'string', foreground: 'e6db74' },
+            { token: 'delimiter', foreground: 'f8f8f0' }
+          ],
+          colors: {
+            'editor.background': '#272822'
+          }
+        });
+        monaco.editor.setTheme('monokai');
+      } else if (theme === 'nord') {
+        monaco.editor.defineTheme('nord', {
+          base: 'vs-dark',
+          inherit: true,
+          rules: [
+            { token: '', foreground: 'd8dee9', background: '2e3440' },
+            { token: 'keyword', foreground: '81a1c1' },
+            { token: 'comment', foreground: '4c566a' },
+            { token: 'string', foreground: 'a3be8c' },
+            { token: 'delimiter', foreground: '88c0d0' }
+          ],
+          colors: {
+            'editor.background': '#2e3440'
+          }
+        });
+        monaco.editor.setTheme('nord');
+      } else if (theme === 'gruvbox') {
+        monaco.editor.defineTheme('gruvbox', {
+          base: 'vs-dark',
+          inherit: true,
+          rules: [
+            { token: '', foreground: 'ebdbb2', background: '282828' },
+            { token: 'keyword', foreground: 'fb4934' },
+            { token: 'comment', foreground: 'a89984' },
+            { token: 'string', foreground: 'b8bb26' },
+            { token: 'delimiter', foreground: 'fabd2f' }
+          ],
+          colors: {
+            'editor.background': '#282828'
+          }
+        });
+        monaco.editor.setTheme('gruvbox');
+      } else if (theme === 'cobalt') {
+        monaco.editor.defineTheme('cobalt', {
+          base: 'vs-dark',
+          inherit: true,
+          rules: [
+            { token: '', foreground: 'ffffff', background: '002240' },
+            { token: 'keyword', foreground: 'ff9d00' },
+            { token: 'comment', foreground: '8ea9c4' },
+            { token: 'string', foreground: '7ec699' },
+            { token: 'delimiter', foreground: 'ffa7c4' }
+          ],
+          colors: {
+            'editor.background': '#002240'
+          }
+        });
+        monaco.editor.setTheme('cobalt');
+      } else {
+        monaco.editor.setTheme('vs-dark');
+      }
+    }
+
+    // Function to apply overall theme by updating CSS classes and Monaco theme.
+    function applyTheme(theme) {
+      // Remove any previously applied theme classes.
+      document.body.classList.remove(
+        "light-theme",
+        "solarized-theme",
+        "dracula-theme",
+        "monokai-theme",
+        "nord-theme",
+        "gruvbox-theme",
+        "cobalt-theme"
+      );
+      if (theme !== "dark") {
+        document.body.classList.add(theme + "-theme");
+      }
+      updateEditorTheme(theme);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const themeSelector = document.getElementById("theme-selector");
+      // Load stored theme or default to dark.
+      const savedTheme = localStorage.getItem("theme") || "dark";
+      applyTheme(savedTheme);
+      themeSelector.value = savedTheme;
+
+      themeSelector.addEventListener("change", () => {
+        const selectedTheme = themeSelector.value;
+        applyTheme(selectedTheme);
+        localStorage.setItem("theme", selectedTheme);
+      });
+    });
 
     // Load Monaco Editor and register a minimal LaTeX language definition.
     require(['vs/editor/editor.main'], function() {
@@ -113,16 +336,36 @@
         }
       });
 
-      // Create the editor, disabling the minimap (the preview on the right).
+      // Create the editor with the stored theme.
+      const storedTheme = localStorage.getItem("theme") || "dark";
+      let monacoTheme;
+      if (storedTheme === "light") {
+        monacoTheme = "vs";
+      } else if (storedTheme === "solarized") {
+        monacoTheme = "solarized";
+      } else if (storedTheme === "dracula") {
+        monacoTheme = "dracula";
+      } else if (storedTheme === "monokai") {
+        monacoTheme = "monokai";
+      } else if (storedTheme === "nord") {
+        monacoTheme = "nord";
+      } else if (storedTheme === "gruvbox") {
+        monacoTheme = "gruvbox";
+      } else if (storedTheme === "cobalt") {
+        monacoTheme = "cobalt";
+      } else {
+        monacoTheme = "vs-dark";
+      }
+
       editor = monaco.editor.create(document.getElementById('editor-container'), {
         value: '\\documentclass{article}\n\\begin{document}\nHello, LaTeX!\n\\end{document}',
         language: 'latex',
-        theme: 'vs-dark',
+        theme: monacoTheme,
         minimap: { enabled: false },
-        automaticLayout: false // We'll call layout() manually on resize.
+        automaticLayout: false
       });
 
-      // Emit text updates via Socket.IO on changes.
+      // Emit text updates via Socket.IO on content changes.
       editor.getModel().onDidChangeContent(() => {
         socket.emit('update_text', { content: editor.getValue() });
         if (realtimeEnabled) {
@@ -142,16 +385,12 @@
     // Update the PDF viewer when compilation is done.
     socket.on('compilation_done', function(data) {
       var pdfContainer = document.getElementById('pdf-container');
-
       if (data.status === 'success') {
-        // Restore the PDF iframe if it doesn't exist.
         if (!document.getElementById('pdf-viewer')) {
           pdfContainer.innerHTML = '<iframe id="pdf-viewer" src="/pdf#toolbar=0" style="width: 100%; height: 100%; border: none;"></iframe>';
         }
-        // Refresh the PDF viewer.
         document.getElementById('pdf-viewer').src = '/pdf?ts=' + new Date().getTime() + '#toolbar=0';
       } else {
-        // If an error occurred, display the error message in a scrollable container.
         pdfContainer.innerHTML = `
           <div style="
               height: 100%;
@@ -161,7 +400,7 @@
               overflow-y: auto;
               color: #ffaaaa;
               font-family: monospace;
-              background: #1e1e1e;
+              background: var(--bg-color);
           ">
             <h2 style="color: #ff5555;">Compilation Error</h2>
             <pre style="white-space: pre-wrap;">${data.logs}</pre>
@@ -169,7 +408,6 @@
         `;
       }
     });
-
 
     // Toggle realtime compilation.
     function toggleRealtime() {
@@ -190,7 +428,6 @@
         sizes: [50, 50],
         minSize: 300,
         gutterSize: 5,
-        // Continuously update the editor layout while dragging.
         onDrag: function() {
           if (editor) {
             editor.layout();
