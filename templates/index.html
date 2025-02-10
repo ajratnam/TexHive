@@ -41,6 +41,9 @@
             editor.getModel().onDidChangeContent(() => {
                 socket.emit("update_text", { content: editor.getValue() });
             });
+
+            socket.emit("update_text", { content: editor.getValue() });
+            compileLatex();
         });
 
         socket.on("update_text", function(data) {

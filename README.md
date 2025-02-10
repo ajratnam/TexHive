@@ -1,3 +1,8 @@
+# TexHive
+#### Collaborative Realtime Personalized Tex Editor with Github Integration
+
+---
+
 Python Dependencies
 
 ```bash
