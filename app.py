@@ -1,4 +1,6 @@
 # app.py
+import textwrap
+
 from flask import Flask, render_template, Response
 from flask_socketio import SocketIO, emit
 import os
@@ -193,6 +195,8 @@ def process_github_commands(content):
                         file_text = r.text
                         code_snippet = extract_code_with_ast(file_text, selector)
                         language = get_language(file_path)
+                        for i in range(selector.count('.')):
+                            code_snippet = textwrap.dedent(code_snippet)
                     else:
                         code_snippet = f"Error fetching file: HTTP {r.status_code}"
                 else:
@@ -214,15 +218,19 @@ def process_github_commands(content):
 
 
 @socketio.on('compile_latex')
-def compile_latex():
+def compile_latex(data=None):
+    # If data is provided, check if the ignoreWarnings flag is set.
+    ignore_warnings = False
+    if data and 'ignoreWarnings' in data:
+        ignore_warnings = data['ignoreWarnings']
+
     tex_file = os.path.join(TEMP_DIR, "document.tex")
     # Preprocess the LaTeX document to handle \Github commands and ensure minted is loaded.
     processed_content = process_github_commands(document_content["document.tex"])
     with open(tex_file, "w") as f:
         f.write(processed_content)
 
-    # Run pdflatex with -shell-escape and with cwd set to TEMP_DIR so that minted
-    # finds all generated files in the same folder.
+    # Run pdflatex with -shell-escape and set cwd to TEMP_DIR
     process = subprocess.run(
         ["pdflatex", "-shell-escape", "-interaction=nonstopmode", "document.tex"],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -230,8 +238,16 @@ def compile_latex():
     )
 
     logs = process.stdout.decode() + process.stderr.decode()
-    status = "success" if process.returncode == 0 else "error"
+
+    # If there are errors and ignore_warnings is not checked, set status to "error".
+    # Otherwise, treat the compilation as "success" so the PDF is rendered.
+    if process.returncode != 0 and not ignore_warnings:
+        status = "error"
+    else:
+        status = "success"
+
     emit('compilation_done', {'status': status, 'logs': logs}, broadcast=True)
+
 
 
 if __name__ == '__main__':

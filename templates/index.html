@@ -160,6 +160,15 @@
             </div>
             <span style="color: var(--text-color)">Realtime</span>
         </label>
+        <!-- Add this new checkbox near your existing controls -->
+        <label class="flex items-center space-x-2 cursor-pointer">
+          <input type="checkbox" id="ignore-warnings" class="hidden">
+          <div class="w-10 h-5 bg-gray-600 rounded-full relative transition-all duration-300">
+            <div id="ignore-warnings-indicator"
+                 class="w-4 h-4 bg-white rounded-full shadow absolute top-0.5 left-0.5 transition-all duration-300"></div>
+          </div>
+          <span>Ignore Warnings</span>
+        </label>
         <!-- Theme Selection -->
         <select id="theme-selector">
             <option value="dark">Dark</option>
@@ -312,6 +321,20 @@
     }
 
     document.addEventListener("DOMContentLoaded", () => {
+        const ignoreCheckbox = document.getElementById('ignore-warnings');
+          const indicator = document.getElementById('ignore-warnings-indicator');
+
+          ignoreCheckbox.addEventListener('change', function () {
+            if (this.checked) {
+              // When checked, move the indicator to the right and change its color.
+              indicator.classList.add('translate-x-5', 'bg-green-500');
+              indicator.classList.remove('bg-white');
+            } else {
+              // When unchecked, move the indicator back.
+              indicator.classList.remove('translate-x-5', 'bg-green-500');
+              indicator.classList.add('bg-white');
+            }
+          });
         const themeSelector = document.getElementById("theme-selector");
         // Load stored theme or default to dark.
         const savedTheme = localStorage.getItem("theme") || "dark";
@@ -380,8 +403,9 @@
     });
 
     function compileLatex() {
+        let ignoreWarnings = document.getElementById('ignore-warnings').checked;
         if (realtimeEnabled || event?.type === 'click') {
-            socket.emit('compile_latex');
+            socket.emit('compile_latex', { ignoreWarnings: ignoreWarnings });
         }
     }
 
