@@ -143,6 +143,47 @@
             color: var(--text-color);
         }
     </style>
+    <script>
+      // Immediately read the saved theme from localStorage or default to "dark"
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+
+      // Determine the corresponding Monaco theme name
+      let initialMonacoTheme;
+      if (savedTheme === 'light') {
+          initialMonacoTheme = 'vs';
+      } else if (savedTheme === 'solarized') {
+          initialMonacoTheme = 'solarized';
+      } else if (savedTheme === 'dracula') {
+          initialMonacoTheme = 'dracula';
+      } else if (savedTheme === 'monokai') {
+          initialMonacoTheme = 'monokai';
+      } else if (savedTheme === 'nord') {
+          initialMonacoTheme = 'nord';
+      } else if (savedTheme === 'gruvbox') {
+          initialMonacoTheme = 'gruvbox';
+      } else if (savedTheme === 'cobalt') {
+          initialMonacoTheme = 'cobalt';
+      } else {
+          initialMonacoTheme = 'vs-dark';
+      }
+
+      // Save this value globally so the Monaco editor can use it
+      window.initialMonacoTheme = initialMonacoTheme;
+
+      // Also, apply the correct body class immediately to set CSS variables:
+      document.documentElement.classList.remove(
+          "light-theme",
+          "solarized-theme",
+          "dracula-theme",
+          "monokai-theme",
+          "nord-theme",
+          "gruvbox-theme",
+          "cobalt-theme"
+      );
+      if (savedTheme !== "dark") {
+          document.documentElement.classList.add(savedTheme + "-theme");
+      }
+    </script>
 </head>
 <body>
 <!-- Header -->
@@ -188,9 +229,7 @@
     <!-- Editor Pane -->
     <div id="editor-container" class="pane"></div>
     <!-- PDF Viewer Pane -->
-    <div id="pdf-container" class="pane">
-        <iframe id="pdf-viewer" src="/pdf#toolbar=0"></iframe>
-    </div>
+    <div id="pdf-container" class="pane"></div>
 </div>
 
 <script>
@@ -349,7 +388,7 @@
     });
 
     require(['vs/editor/editor.main'], function () {
-        monaco.languages.register({id: 'latex'});
+        monaco.languages.register({ id: 'latex' });
         monaco.languages.setMonarchTokensProvider('latex', {
             tokenizer: {
                 root: [
@@ -362,44 +401,27 @@
             }
         });
 
-        const storedTheme = localStorage.getItem("theme") || "dark";
-        let monacoTheme;
-        if (storedTheme === "light") {
-            monacoTheme = "vs";
-        } else if (storedTheme === "solarized") {
-            monacoTheme = "solarized";
-        } else if (storedTheme === "dracula") {
-            monacoTheme = "dracula";
-        } else if (storedTheme === "monokai") {
-            monacoTheme = "monokai";
-        } else if (storedTheme === "nord") {
-            monacoTheme = "nord";
-        } else if (storedTheme === "gruvbox") {
-            monacoTheme = "gruvbox";
-        } else if (storedTheme === "cobalt") {
-            monacoTheme = "cobalt";
-        } else {
-            monacoTheme = "vs-dark";
-        }
-
+        // Use the preloaded theme from the global variable
         editor = monaco.editor.create(document.getElementById('editor-container'), {
             value: '\\documentclass{article}\n\\begin{document}\nHello, LaTeX!\n\\end{document}',
             language: 'latex',
-            theme: monacoTheme,
-            minimap: {enabled: false},
+            theme: window.initialMonacoTheme, // Use preloaded theme
+            minimap: { enabled: false },
             automaticLayout: false
         });
 
         editor.getModel().onDidChangeContent(() => {
-            socket.emit('update_text', {content: editor.getValue()});
+            socket.emit('update_text', { content: editor.getValue() });
             if (realtimeEnabled) {
                 clearTimeout(compileTimeout);
                 compileTimeout = setTimeout(compileLatex, 1000);
             }
         });
 
-        socket.emit('update_text', {content: editor.getValue()});
+        socket.emit('update_text', { content: editor.getValue() });
         socket.emit('compile_latex');
+
+        updateEditorTheme(window.initialMonacoTheme);
     });
 
     function compileLatex() {
