@@ -1,4 +1,3 @@
-# app.py
 import textwrap
 
 from flask import Flask, render_template, Response
@@ -6,7 +5,7 @@ from flask_socketio import SocketIO, emit
 import os
 import subprocess
 import re
-import requests  # pip install requests
+import requests
 import ast
 
 app = Flask(__name__)
@@ -44,10 +43,6 @@ def handle_text_update(data):
 
 
 def get_language(file_path):
-    """
-    Detect the programming language from the file extension.
-    Defaults to "text" if the extension is unrecognized.
-    """
     ext = os.path.splitext(file_path)[1].lower()
     if ext == ".py":
         return "python"
@@ -68,10 +63,6 @@ def get_language(file_path):
 
 
 def get_source_segment(source, node):
-    """
-    Returns the source code corresponding to an AST node using its
-    lineno and end_lineno attributes.
-    """
     lines = source.splitlines()
     if hasattr(node, 'lineno') and hasattr(node, 'end_lineno'):
         return "\n".join(lines[node.lineno - 1: node.end_lineno])
@@ -80,18 +71,11 @@ def get_source_segment(source, node):
 
 
 def extract_code_with_ast(file_text, selector):
-    """
-    Parse the Python file and return the source for the element named by
-    the selector. Supported selectors:
-      - A single name (e.g. 'li'): matches a top-level class, function, or assignment.
-      - A dotted name (e.g. 'State.transition'): finds the class 'State' and then a member named 'transition'.
-    """
     try:
         tree = ast.parse(file_text)
     except Exception as e:
         return f"Error parsing file: {str(e)}"
 
-    # If the selector contains a dot, assume it's a Class.member request.
     if '.' in selector:
         class_name, member_name = selector.split('.', 1)
         for node in tree.body:
@@ -106,7 +90,6 @@ def extract_code_with_ast(file_text, selector):
                 return f"Member '{member_name}' not found in class '{class_name}'."
         return f"Class '{class_name}' not found."
     else:
-        # Look for a top-level element with the given name.
         for node in tree.body:
             if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and getattr(node, 'name', None) == selector:
                 return get_source_segment(file_text, node)
@@ -114,7 +97,6 @@ def extract_code_with_ast(file_text, selector):
                 for target in node.targets:
                     if isinstance(target, ast.Name) and target.id == selector:
                         return get_source_segment(file_text, node)
-        # Also search inside classes if not found at the top level.
         for node in tree.body:
             if isinstance(node, ast.ClassDef):
                 for subnode in node.body:
@@ -134,17 +116,6 @@ def ensure_minted_package(content):
 
 
 def process_github_commands(content):
-    """
-    Scans the LaTeX document for occurrences of \Github{...} and replaces each
-    with a minted environment containing the fetched code with syntax highlighting.
-
-    Supported formats:
-      1. Full URL with optional line range:
-         \Github{https://github.com/user/repo/blob/branch/path/to/file#L10-L12}
-      2. Shorthand with a selector:
-         \Github{user/repo/branch/path/to/file#selector}
-         where selector can be a function, a class, a class member (e.g. State.transition), or a variable.
-    """
     pattern = r'\\Github\{([^}]*)\}'
 
     def replace_func(match):
@@ -152,9 +123,7 @@ def process_github_commands(content):
         code_snippet = ""
         language = "text"
         try:
-            # CASE 1: Full GitHub URL.
             if arg.startswith("http://") or arg.startswith("https://"):
-                # Expected URL format: https://github.com/user/repo/blob/branch/path/to/file#L10-L12
                 url_pattern = r'(https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/([^#]+))(#L(\d+)-L(\d+))?'
                 m = re.match(url_pattern, arg)
                 if m:
@@ -180,7 +149,6 @@ def process_github_commands(content):
                         code_snippet = f"Error fetching file: HTTP {r.status_code}"
                 else:
                     code_snippet = "Invalid GitHub URL format."
-            # CASE 2: Shorthand with a selector.
             else:
                 if '#' in arg:
                     file_part, selector = arg.split('#', 1)
@@ -204,7 +172,6 @@ def process_github_commands(content):
         except Exception as e:
             code_snippet = f"Error processing \\Github command: {str(e)}"
 
-        # Wrap the fetched code in a minted environment without line numbers or a frame.
         minted_block = (
             "\\begin{minted}[fontsize=\\footnotesize, breaklines, breakanywhere]{" + language + "}\n" +
             code_snippet +
@@ -220,18 +187,15 @@ def process_github_commands(content):
 
 @socketio.on('compile_latex')
 def compile_latex(data=None):
-    # If data is provided, check if the ignoreWarnings flag is set.
     ignore_warnings = False
     if data and 'ignoreWarnings' in data:
         ignore_warnings = data['ignoreWarnings']
 
     tex_file = os.path.join(TEMP_DIR, "document.tex")
-    # Preprocess the LaTeX document to handle \Github commands and ensure minted is loaded.
     processed_content = process_github_commands(document_content["document.tex"])
     with open(tex_file, "w") as f:
         f.write(processed_content)
 
-    # Run pdflatex with -shell-escape and set cwd to TEMP_DIR
     process = subprocess.run(
         ["pdflatex", "-shell-escape", "-interaction=nonstopmode", "document.tex"],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -240,8 +204,6 @@ def compile_latex(data=None):
 
     logs = process.stdout.decode() + process.stderr.decode()
 
-    # If there are errors and ignore_warnings is not checked, set status to "error".
-    # Otherwise, treat the compilation as "success" so the PDF is rendered.
     if process.returncode != 0 and not ignore_warnings:
         status = "error"
     else:

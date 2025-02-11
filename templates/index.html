@@ -127,7 +127,6 @@
             background-color: rgba(255, 255, 255, 0.2);
         }
 
-        /* Style for theme selector in header */
         /* Theme-aware dropdown styling */
         #theme-selector {
             background: var(--header-color);
@@ -144,10 +143,8 @@
         }
     </style>
     <script>
-        // Immediately read the saved theme from localStorage or default to "dark"
         const savedTheme = localStorage.getItem('theme') || 'dark';
 
-        // Determine the corresponding Monaco theme name
         let initialMonacoTheme;
         if (savedTheme === 'light') {
             initialMonacoTheme = 'vs';
@@ -167,10 +164,8 @@
             initialMonacoTheme = 'vs-dark';
         }
 
-        // Save this value globally so the Monaco editor can use it
         window.initialMonacoTheme = initialMonacoTheme;
 
-        // Also, apply the correct body class immediately to set CSS variables:
         document.documentElement.classList.remove(
             "light-theme",
             "solarized-theme",
@@ -201,7 +196,6 @@
             </div>
             <span style="color: var(--text-color)">Realtime</span>
         </label>
-        <!-- Add this new checkbox near your existing controls -->
         <label class="flex items-center space-x-2 cursor-pointer">
             <input type="checkbox" id="ignore-warnings" class="hidden">
             <div class="w-10 h-5 bg-gray-600 rounded-full relative transition-all duration-300">
@@ -377,18 +371,15 @@
 
         ignoreCheckbox.addEventListener('change', function () {
             if (this.checked) {
-                // When checked, move the indicator to the right and change its color.
                 indicator.classList.add('translate-x-5', 'bg-green-500');
                 indicator.classList.remove('bg-white');
             } else {
-                // When unchecked, move the indicator back.
                 indicator.classList.remove('translate-x-5', 'bg-green-500');
                 indicator.classList.add('bg-white');
             }
             localStorage.setItem("ignoreWarnings", this.checked);
         });
         const themeSelector = document.getElementById("theme-selector");
-        // Load stored theme or default to dark.
         const savedTheme = localStorage.getItem("theme") || "dark";
         applyTheme(savedTheme);
         themeSelector.value = savedTheme;
@@ -414,11 +405,10 @@
             }
         });
 
-        // Use the preloaded theme from the global variable
         editor = monaco.editor.create(document.getElementById('editor-container'), {
             value: '\\documentclass{article}\n\\begin{document}\nHello, LaTeX!\n\\end{document}',
             language: 'latex',
-            theme: window.initialMonacoTheme, // Use preloaded theme
+            theme: window.initialMonacoTheme,
             minimap: {enabled: false},
             automaticLayout: false
         });
@@ -472,7 +462,6 @@
 
     function toggleRealtime() {
         realtimeEnabled = document.getElementById('realtime-toggle').checked;
-        // Persist the state in localStorage:
         localStorage.setItem("realtime", realtimeEnabled);
 
         let indicator = document.getElementById('toggle-indicator');
