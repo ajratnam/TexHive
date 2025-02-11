@@ -206,10 +206,11 @@ def process_github_commands(content):
 
         # Wrap the fetched code in a minted environment without line numbers or a frame.
         minted_block = (
-            "\\begin{minted}[fontsize=\\small]{" + language + "}\n" +
+            "\\begin{minted}[fontsize=\\footnotesize, breaklines, breakanywhere]{" + language + "}\n" +
             code_snippet +
             "\n\\end{minted}"
         )
+
         return minted_block
 
     new_content = re.sub(pattern, replace_func, content)
