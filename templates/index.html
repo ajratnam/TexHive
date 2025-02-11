@@ -144,45 +144,45 @@
         }
     </style>
     <script>
-      // Immediately read the saved theme from localStorage or default to "dark"
-      const savedTheme = localStorage.getItem('theme') || 'dark';
+        // Immediately read the saved theme from localStorage or default to "dark"
+        const savedTheme = localStorage.getItem('theme') || 'dark';
 
-      // Determine the corresponding Monaco theme name
-      let initialMonacoTheme;
-      if (savedTheme === 'light') {
-          initialMonacoTheme = 'vs';
-      } else if (savedTheme === 'solarized') {
-          initialMonacoTheme = 'solarized';
-      } else if (savedTheme === 'dracula') {
-          initialMonacoTheme = 'dracula';
-      } else if (savedTheme === 'monokai') {
-          initialMonacoTheme = 'monokai';
-      } else if (savedTheme === 'nord') {
-          initialMonacoTheme = 'nord';
-      } else if (savedTheme === 'gruvbox') {
-          initialMonacoTheme = 'gruvbox';
-      } else if (savedTheme === 'cobalt') {
-          initialMonacoTheme = 'cobalt';
-      } else {
-          initialMonacoTheme = 'vs-dark';
-      }
+        // Determine the corresponding Monaco theme name
+        let initialMonacoTheme;
+        if (savedTheme === 'light') {
+            initialMonacoTheme = 'vs';
+        } else if (savedTheme === 'solarized') {
+            initialMonacoTheme = 'solarized';
+        } else if (savedTheme === 'dracula') {
+            initialMonacoTheme = 'dracula';
+        } else if (savedTheme === 'monokai') {
+            initialMonacoTheme = 'monokai';
+        } else if (savedTheme === 'nord') {
+            initialMonacoTheme = 'nord';
+        } else if (savedTheme === 'gruvbox') {
+            initialMonacoTheme = 'gruvbox';
+        } else if (savedTheme === 'cobalt') {
+            initialMonacoTheme = 'cobalt';
+        } else {
+            initialMonacoTheme = 'vs-dark';
+        }
 
-      // Save this value globally so the Monaco editor can use it
-      window.initialMonacoTheme = initialMonacoTheme;
+        // Save this value globally so the Monaco editor can use it
+        window.initialMonacoTheme = initialMonacoTheme;
 
-      // Also, apply the correct body class immediately to set CSS variables:
-      document.documentElement.classList.remove(
-          "light-theme",
-          "solarized-theme",
-          "dracula-theme",
-          "monokai-theme",
-          "nord-theme",
-          "gruvbox-theme",
-          "cobalt-theme"
-      );
-      if (savedTheme !== "dark") {
-          document.documentElement.classList.add(savedTheme + "-theme");
-      }
+        // Also, apply the correct body class immediately to set CSS variables:
+        document.documentElement.classList.remove(
+            "light-theme",
+            "solarized-theme",
+            "dracula-theme",
+            "monokai-theme",
+            "nord-theme",
+            "gruvbox-theme",
+            "cobalt-theme"
+        );
+        if (savedTheme !== "dark") {
+            document.documentElement.classList.add(savedTheme + "-theme");
+        }
     </script>
 </head>
 <body>
@@ -203,12 +203,12 @@
         </label>
         <!-- Add this new checkbox near your existing controls -->
         <label class="flex items-center space-x-2 cursor-pointer">
-          <input type="checkbox" id="ignore-warnings" class="hidden">
-          <div class="w-10 h-5 bg-gray-600 rounded-full relative transition-all duration-300">
-            <div id="ignore-warnings-indicator"
-                 class="w-4 h-4 bg-white rounded-full shadow absolute top-0.5 left-0.5 transition-all duration-300"></div>
-          </div>
-          <span>Ignore Warnings</span>
+            <input type="checkbox" id="ignore-warnings" class="hidden">
+            <div class="w-10 h-5 bg-gray-600 rounded-full relative transition-all duration-300">
+                <div id="ignore-warnings-indicator"
+                     class="w-4 h-4 bg-white rounded-full shadow absolute top-0.5 left-0.5 transition-all duration-300"></div>
+            </div>
+            <span>Ignore Warnings</span>
         </label>
         <!-- Theme Selection -->
         <select id="theme-selector">
@@ -360,20 +360,33 @@
     }
 
     document.addEventListener("DOMContentLoaded", () => {
+        const realtimeToggle = document.getElementById('realtime-toggle');
+        realtimeToggle.checked = localStorage.getItem("realtime") === "true";
+        toggleRealtime();
         const ignoreCheckbox = document.getElementById('ignore-warnings');
-          const indicator = document.getElementById('ignore-warnings-indicator');
+        const indicator = document.getElementById('ignore-warnings-indicator');
+        const savedIgnore = localStorage.getItem("ignoreWarnings") === "true";
+        ignoreCheckbox.checked = savedIgnore;
+        if (savedIgnore) {
+            indicator.classList.add('translate-x-5', 'bg-green-500');
+            indicator.classList.remove('bg-white');
+        } else {
+            indicator.classList.remove('translate-x-5', 'bg-green-500');
+            indicator.classList.add('bg-white');
+        }
 
-          ignoreCheckbox.addEventListener('change', function () {
+        ignoreCheckbox.addEventListener('change', function () {
             if (this.checked) {
-              // When checked, move the indicator to the right and change its color.
-              indicator.classList.add('translate-x-5', 'bg-green-500');
-              indicator.classList.remove('bg-white');
+                // When checked, move the indicator to the right and change its color.
+                indicator.classList.add('translate-x-5', 'bg-green-500');
+                indicator.classList.remove('bg-white');
             } else {
-              // When unchecked, move the indicator back.
-              indicator.classList.remove('translate-x-5', 'bg-green-500');
-              indicator.classList.add('bg-white');
+                // When unchecked, move the indicator back.
+                indicator.classList.remove('translate-x-5', 'bg-green-500');
+                indicator.classList.add('bg-white');
             }
-          });
+            localStorage.setItem("ignoreWarnings", this.checked);
+        });
         const themeSelector = document.getElementById("theme-selector");
         // Load stored theme or default to dark.
         const savedTheme = localStorage.getItem("theme") || "dark";
@@ -388,7 +401,7 @@
     });
 
     require(['vs/editor/editor.main'], function () {
-        monaco.languages.register({ id: 'latex' });
+        monaco.languages.register({id: 'latex'});
         monaco.languages.setMonarchTokensProvider('latex', {
             tokenizer: {
                 root: [
@@ -406,19 +419,19 @@
             value: '\\documentclass{article}\n\\begin{document}\nHello, LaTeX!\n\\end{document}',
             language: 'latex',
             theme: window.initialMonacoTheme, // Use preloaded theme
-            minimap: { enabled: false },
+            minimap: {enabled: false},
             automaticLayout: false
         });
 
         editor.getModel().onDidChangeContent(() => {
-            socket.emit('update_text', { content: editor.getValue() });
+            socket.emit('update_text', {content: editor.getValue()});
             if (realtimeEnabled) {
                 clearTimeout(compileTimeout);
                 compileTimeout = setTimeout(compileLatex, 1000);
             }
         });
 
-        socket.emit('update_text', { content: editor.getValue() });
+        socket.emit('update_text', {content: editor.getValue()});
         socket.emit('compile_latex');
 
         updateEditorTheme(window.initialMonacoTheme);
@@ -427,7 +440,7 @@
     function compileLatex() {
         let ignoreWarnings = document.getElementById('ignore-warnings').checked;
         if (realtimeEnabled || event?.type === 'click') {
-            socket.emit('compile_latex', { ignoreWarnings: ignoreWarnings });
+            socket.emit('compile_latex', {ignoreWarnings: ignoreWarnings});
         }
     }
 
@@ -459,6 +472,9 @@
 
     function toggleRealtime() {
         realtimeEnabled = document.getElementById('realtime-toggle').checked;
+        // Persist the state in localStorage:
+        localStorage.setItem("realtime", realtimeEnabled);
+
         let indicator = document.getElementById('toggle-indicator');
         if (realtimeEnabled) {
             indicator.classList.add('translate-x-5', 'bg-green-500');
@@ -468,6 +484,7 @@
             indicator.classList.add('bg-white');
         }
     }
+
 
     require(['split'], function (Split) {
         Split(['#editor-container', '#pdf-container'], {
