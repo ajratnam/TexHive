@@ -1,0 +1,121 @@
+/* Default (Dark) Theme Variables */
+:root {
+    --bg-color: #1e1e1e;
+    --header-color: #2d2d2d;
+    --text-color: #ffffff;
+    --gutter-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Light Theme */
+.light-theme {
+    --bg-color: #ffffff;
+    --header-color: #f3f3f3;
+    --text-color: #000000;
+    --gutter-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Solarized Theme */
+.solarized-theme {
+    --bg-color: #002b36;
+    --header-color: #073642;
+    --text-color: #839496;
+    --gutter-color: rgba(131, 148, 150, 0.2);
+}
+
+/* Dracula Theme */
+.dracula-theme {
+    --bg-color: #282a36;
+    --header-color: #44475a;
+    --text-color: #f8f8f2;
+    --gutter-color: rgba(98, 114, 164, 0.2);
+}
+
+/* Monokai Theme */
+.monokai-theme {
+    --bg-color: #272822;
+    --header-color: #383830;
+    --text-color: #f8f8f2;
+    --gutter-color: rgba(248, 248, 242, 0.1);
+}
+
+/* Nord Theme */
+.nord-theme {
+    --bg-color: #2e3440;
+    --header-color: #3b4252;
+    --text-color: #d8dee9;
+    --gutter-color: rgba(216, 222, 233, 0.2);
+}
+
+/* Gruvbox Theme */
+.gruvbox-theme {
+    --bg-color: #282828;
+    --header-color: #3c3836;
+    --text-color: #ebdbb2;
+    --gutter-color: rgba(235, 219, 178, 0.2);
+}
+
+/* Cobalt Theme */
+.cobalt-theme {
+    --bg-color: #002240;
+    --header-color: #00335d;
+    --text-color: #ffffff;
+    --gutter-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Global Styles */
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg-color);
+    color: var(--text-color);
+}
+
+header {
+    background: var(--header-color);
+}
+
+#split-container {
+    display: flex;
+    height: calc(100vh - 56px);
+}
+
+.pane {
+    background: var(--bg-color);
+    overflow: hidden;
+    position: relative;
+}
+
+#pdf-viewer {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+/* Subtle Split.js gutter styling */
+.gutter {
+    background-color: var(--gutter-color);
+    cursor: col-resize;
+    width: 5px;
+    z-index: 10;
+    transition: background-color 0.2s ease;
+}
+
+.gutter:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Theme-aware dropdown styling */
+#theme-selector {
+    background: var(--header-color);
+    border: 1px solid var(--text-color);
+    color: var(--text-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    transition: background 0.3s ease, color 0.3s ease, border 0.3s ease;
+}
+
+#theme-selector option {
+    background: var(--bg-color);
+    color: var(--text-color);
+}
