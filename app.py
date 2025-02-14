@@ -1,46 +1,118 @@
-import textwrap
-
-from flask import Flask, render_template, Response
+import os, subprocess, re, requests, ast, json, textwrap, shutil
+from flask import Flask, render_template, Response, request
 from flask_socketio import SocketIO, emit
-import os
-import subprocess
-import re
-import requests
-import ast
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+# Directories for source (DATA_DIR) and for compilation (TEMP_DIR)
+DATA_DIR = "data"
 TEMP_DIR = "temp"
+os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-document_content = {"document.tex": ""}
+#############################
+#  File System API Endpoints (operating in DATA_DIR)
+#############################
+def get_file_tree(directory):
+    tree = []
+    for entry in os.scandir(directory):
+        rel_path = os.path.relpath(entry.path, DATA_DIR)
+        if entry.is_dir():
+            tree.append({
+                'name': entry.name,
+                'path': rel_path,
+                'isDirectory': True,
+                'children': get_file_tree(entry.path)
+            })
+        else:
+            tree.append({
+                'name': entry.name,
+                'path': rel_path,
+                'isDirectory': False
+            })
+    return tree
 
+@app.route('/api/files', methods=['GET'])
+def api_files():
+    tree = get_file_tree(DATA_DIR)
+    return json.dumps(tree)
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+@app.route('/api/file', methods=['GET'])
+def api_get_file():
+    path = request.args.get('path')
+    if not path:
+        return "Path parameter missing", 400
+    abs_path = os.path.join(DATA_DIR, path)
+    if not os.path.realpath(abs_path).startswith(os.path.realpath(DATA_DIR)):
+        return "Invalid path", 400
+    if not os.path.exists(abs_path) or not os.path.isfile(abs_path):
+        return "File not found", 404
+    with open(abs_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    return json.dumps({'path': path, 'content': content})
 
+@app.route('/api/file', methods=['POST'])
+def api_post_file():
+    data = request.get_json()
+    if not data or 'path' not in data or 'content' not in data:
+        return "Missing data", 400
+    path = data['path']
+    content = data['content']
+    abs_path = os.path.join(DATA_DIR, path)
+    if not os.path.realpath(abs_path).startswith(os.path.realpath(DATA_DIR)):
+        return "Invalid path", 400
+    os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+    with open(abs_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    return json.dumps({'status': 'success'})
 
-@app.route('/pdf')
-def serve_pdf():
-    pdf_path = os.path.join(TEMP_DIR, "document.pdf")
-    if not os.path.exists(pdf_path):
-        return "No PDF available", 404
+@app.route('/api/file', methods=['DELETE'])
+def api_delete_file():
+    path = request.args.get('path')
+    if not path:
+        return "Path parameter missing", 400
+    abs_path = os.path.join(DATA_DIR, path)
+    if not os.path.realpath(abs_path).startswith(os.path.realpath(DATA_DIR)):
+        return "Invalid path", 400
+    if os.path.exists(abs_path):
+        if os.path.isdir(abs_path):
+            shutil.rmtree(abs_path)
+        else:
+            os.remove(abs_path)
+        return json.dumps({'status': 'success'})
+    return "File not found", 404
 
-    with open(pdf_path, "rb") as pdf_file:
-        response = Response(pdf_file.read(), mimetype="application/pdf")
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
-        return response
+@app.route('/api/file/rename', methods=['POST'])
+def api_rename_file():
+    data = request.get_json()
+    if not data or 'oldPath' not in data or 'newPath' not in data:
+        return "Missing data", 400
+    old_path = os.path.join(DATA_DIR, data['oldPath'])
+    new_path = os.path.join(DATA_DIR, data['newPath'])
+    if not (os.path.realpath(old_path).startswith(os.path.realpath(DATA_DIR)) and
+            os.path.realpath(new_path).startswith(os.path.realpath(DATA_DIR))):
+        return "Invalid path", 400
+    if os.path.exists(old_path):
+        os.makedirs(os.path.dirname(new_path), exist_ok=True)
+        os.rename(old_path, new_path)
+        return json.dumps({'status': 'success'})
+    return "File not found", 404
 
+@app.route('/api/folder', methods=['POST'])
+def api_create_folder():
+    data = request.get_json()
+    if not data or 'path' not in data:
+        return "Missing data", 400
+    folder_path = os.path.join(DATA_DIR, data['path'])
+    if not os.path.realpath(folder_path).startswith(os.path.realpath(DATA_DIR)):
+        return "Invalid path", 400
+    os.makedirs(folder_path, exist_ok=True)
+    return json.dumps({'status': 'success'})
 
-@socketio.on('update_text')
-def handle_text_update(data):
-    document_content["document.tex"] = data['content']
-    emit('update_text', data, broadcast=True, include_self=False)
-
+#############################
+#  LaTeX Compilation Helpers
+#############################
 
 def get_language(file_path):
     ext = os.path.splitext(file_path)[1].lower()
@@ -61,14 +133,12 @@ def get_language(file_path):
     else:
         return "text"
 
-
 def get_source_segment(source, node):
     lines = source.splitlines()
     if hasattr(node, 'lineno') and hasattr(node, 'end_lineno'):
         return "\n".join(lines[node.lineno - 1: node.end_lineno])
     else:
         return "Source segment not available."
-
 
 def extract_code_with_ast(file_text, selector):
     try:
@@ -108,12 +178,10 @@ def extract_code_with_ast(file_text, selector):
                                 return get_source_segment(file_text, subnode)
         return f"Element '{selector}' not found."
 
-
 def ensure_minted_package(content):
     if '\\usepackage{minted}' not in content:
         content = content.replace('\\begin{document}', '\\usepackage{minted}\n\\begin{document}', 1)
     return content
-
 
 def process_github_commands(content):
     pattern = r'\\Github\{([^}]*)\}'
@@ -177,41 +245,78 @@ def process_github_commands(content):
             code_snippet +
             "\n\\end{minted}"
         )
-
         return minted_block
 
     new_content = re.sub(pattern, replace_func, content)
     new_content = ensure_minted_package(new_content)
     return new_content
 
+################################
+#  Socket.IO Event Handlers
+################################
+
+@socketio.on('update_text')
+def handle_text_update(data):
+    # Save updated file content to DATA_DIR
+    file_path = data.get('path', 'document.tex')
+    abs_path = os.path.join(DATA_DIR, file_path)
+    os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+    with open(abs_path, 'w', encoding='utf-8') as f:
+        f.write(data.get('content', ''))
+    # Broadcast update (if needed)
+    emit('update_text', data, broadcast=True, include_self=False)
 
 @socketio.on('compile_latex')
 def compile_latex(data=None):
     ignore_warnings = False
     if data and 'ignoreWarnings' in data:
         ignore_warnings = data['ignoreWarnings']
+    tex_file = "document.tex"
+    if data and 'path' in data and data['path'].endswith('.tex'):
+        tex_file = data['path']
+    # Clear TEMP_DIR and copy all files from DATA_DIR into TEMP_DIR for compilation.
+    if os.path.exists(TEMP_DIR):
+        shutil.rmtree(TEMP_DIR)
+    os.makedirs(TEMP_DIR, exist_ok=True)
+    shutil.copytree(DATA_DIR, TEMP_DIR, dirs_exist_ok=True)
+    abs_tex_file = os.path.join(TEMP_DIR, tex_file)
+    if not os.path.exists(abs_tex_file):
+        emit('compilation_done', {'status': 'error', 'logs': 'Main file not found.'}, broadcast=True)
+        return
 
-    tex_file = os.path.join(TEMP_DIR, "document.tex")
-    processed_content = process_github_commands(document_content["document.tex"])
-    with open(tex_file, "w") as f:
+    with open(abs_tex_file, 'r', encoding='utf-8') as f:
+        content = f.read()
+    processed_content = process_github_commands(content)
+    with open(abs_tex_file, 'w', encoding='utf-8') as f:
         f.write(processed_content)
 
+    workdir = os.path.dirname(abs_tex_file)
     process = subprocess.run(
-        ["pdflatex", "-shell-escape", "-interaction=nonstopmode", "document.tex"],
+        ["pdflatex", "-shell-escape", "-interaction=nonstopmode", os.path.basename(tex_file)],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        cwd=TEMP_DIR
+        cwd=workdir
     )
-
     logs = process.stdout.decode() + process.stderr.decode()
-
-    if process.returncode != 0 and not ignore_warnings:
-        status = "error"
-    else:
-        status = "success"
-
+    status = "error" if process.returncode != 0 and not ignore_warnings else "success"
     emit('compilation_done', {'status': status, 'logs': logs}, broadcast=True)
 
+@app.route('/')
+def index():
+    return render_template('index.html')
 
+@app.route('/pdf')
+def serve_pdf():
+    # Serve the PDF from TEMP_DIR (the compilation folder)
+    pdf_path = os.path.join(TEMP_DIR, "document.pdf")
+    if not os.path.exists(pdf_path):
+        return "No PDF available", 404
+
+    with open(pdf_path, "rb") as pdf_file:
+        response = Response(pdf_file.read(), mimetype="application/pdf")
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)

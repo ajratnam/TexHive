@@ -119,3 +119,10 @@ header {
     background: var(--bg-color);
     color: var(--text-color);
 }
+
+/* File Explorer Styling */
+#file-explorer {
+    background: var(--bg-color);
+    color: var(--text-color);
+    border-right: 1px solid var(--gutter-color);
+}

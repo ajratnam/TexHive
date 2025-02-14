@@ -1,136 +1,488 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>TexHive</title>
-    <!-- Socket.IO -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <!-- Monaco Editor Loader -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.0/min/vs/loader.js"></script>
-    <!-- Configure RequireJS paths for Monaco and Split.js -->
-    <script>
-        require.config({
-            paths: {
-                vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.0/min/vs',
-                split: 'https://cdnjs.cloudflare.com/ajax/libs/split.js/1.6.5/split.min'
-            }
-        });
-    </script>
-    <!-- TailwindCSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Theme CSS -->
-    <link rel="stylesheet" href="/static/css/theme.css">
-    <!-- Theme JS -->
-    <script src="/static/js/theme.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TexHive</title>
+  <!-- Socket.IO -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+  <!-- Monaco Editor Loader -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.0/min/vs/loader.js"></script>
+  <script>
+    require.config({
+      paths: {
+        vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.0/min/vs',
+        split: 'https://cdnjs.cloudflare.com/ajax/libs/split.js/1.6.5/split.min'
+      }
+    });
+  </script>
+  <!-- TailwindCSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Theme CSS -->
+  <link rel="stylesheet" href="/static/css/theme.css">
+  <!-- Theme JS -->
+  <script src="/static/js/theme.js"></script>
+  <style>
+    /* File Explorer styles (using theme variables via CSS) */
+    #file-explorer {
+      background: var(--bg-color);
+      color: var(--text-color);
+      border-right: 1px solid var(--gutter-color);
+      transition: all 0.3s ease;
+    }
+    #file-explorer ul {
+      list-style: none;
+      padding-left: 1rem;
+    }
+    #file-explorer li {
+      cursor: pointer;
+      margin: 0.2rem 0;
+      user-select: none;
+    }
+    .folder::before {
+      content: "📁 ";
+    }
+    .file::before {
+      content: "📄 ";
+    }
+    .selected {
+      background-color: rgba(59, 130, 246, 0.3);
+      border-radius: 4px;
+    }
+    /* Hamburger button */
+    #hamburger-btn {
+      transition: color 0.3s;
+    }
+    /* Context Menu styling */
+    #context-menu {
+      position: absolute;
+      background: var(--bg-color);
+      border: 1px solid var(--gutter-color);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      z-index: 50;
+      width: 150px;
+    }
+    #context-menu.hidden {
+      display: none;
+    }
+    #context-menu .menu-item {
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+    }
+    #context-menu .menu-item:hover {
+      background: var(--header-color);
+    }
+    /* Buttons in file explorer */
+    .explorer-button {
+      margin-right: 0.5rem;
+      padding: 0.25rem 0.5rem;
+      background: var(--header-color);
+      color: var(--text-color);
+      border: 1px solid var(--text-color);
+      border-radius: 0.25rem;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .explorer-button:hover {
+      background: var(--gutter-color);
+    }
+  </style>
 </head>
-<body>
-<!-- Header -->
-<header class="flex items-center justify-between px-4 py-3">
-    <h1 class="text-2xl font-bold">TexHive</h1>
-    <div class="flex items-center space-x-4">
-        <button onclick="compileLatex()" class="px-4 py-2 bg-blue-500 text-white rounded">
-            Compile &amp; Preview
-        </button>
-        <label class="flex items-center space-x-2 cursor-pointer">
-            <input type="checkbox" id="realtime-toggle" class="hidden" onchange="toggleRealtime()">
-            <div class="w-10 h-5 bg-gray-600 rounded-full relative transition-all duration-300">
-                <div id="toggle-indicator"
-                     class="w-4 h-4 bg-white rounded-full shadow absolute top-0.5 left-0.5 transition-all duration-300"></div>
-            </div>
-            <span style="color: var(--text-color)">Realtime</span>
-        </label>
-        <label class="flex items-center space-x-2 cursor-pointer">
-            <input type="checkbox" id="ignore-warnings" class="hidden">
-            <div class="w-10 h-5 bg-gray-600 rounded-full relative transition-all duration-300">
-                <div id="ignore-warnings-indicator"
-                     class="w-4 h-4 bg-white rounded-full shadow absolute top-0.5 left-0.5 transition-all duration-300"></div>
-            </div>
-            <span>Ignore Warnings</span>
-        </label>
-        <!-- Theme Selection -->
-        <select id="theme-selector">
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
-            <option value="solarized">Solarized</option>
-            <option value="dracula">Dracula</option>
-            <option value="monokai">Monokai</option>
-            <option value="nord">Nord</option>
-            <option value="gruvbox">Gruvbox</option>
-            <option value="cobalt">Cobalt</option>
-        </select>
+<body class="h-screen">
+  <!-- Header -->
+  <header class="flex items-center justify-between px-4 py-3 bg-header-color text-text-color">
+    <div class="flex items-center">
+      <!-- Hamburger Menu -->
+      <button id="hamburger-btn" onclick="toggleSidebar()" class="mr-4 focus:outline-none">
+        <svg class="w-6 h-6 fill-current" xmlns="http://www.w3.org/2000/svg" fill="none"
+             viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      <h1 class="text-2xl font-bold">TexHive</h1>
     </div>
-</header>
+    <div class="flex items-center space-x-4">
+      <!-- Compile button (only visible for .tex files) -->
+      <button id="compile-btn" onclick="compileLatex()" class="px-4 py-2 bg-blue-500 text-white rounded">
+        Compile &amp; Preview
+      </button>
+      <label class="flex items-center space-x-2 cursor-pointer">
+        <input type="checkbox" id="realtime-toggle" class="hidden" onchange="toggleRealtime()">
+        <div class="w-10 h-5 bg-gray-600 rounded-full relative transition-all duration-300">
+          <div id="toggle-indicator"
+               class="w-4 h-4 bg-white rounded-full shadow absolute top-0.5 left-0.5 transition-all duration-300"></div>
+        </div>
+        <span>Realtime</span>
+      </label>
+      <label class="flex items-center space-x-2 cursor-pointer">
+        <input type="checkbox" id="ignore-warnings" class="hidden">
+        <div class="w-10 h-5 bg-gray-600 rounded-full relative transition-all duration-300">
+          <div id="ignore-warnings-indicator"
+               class="w-4 h-4 bg-white rounded-full shadow absolute top-0.5 left-0.5 transition-all duration-300"></div>
+        </div>
+        <span>Ignore Warnings</span>
+      </label>
+      <select id="theme-selector">
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+        <option value="solarized">Solarized</option>
+        <option value="dracula">Dracula</option>
+        <option value="monokai">Monokai</option>
+        <option value="nord">Nord</option>
+        <option value="gruvbox">Gruvbox</option>
+        <option value="cobalt">Cobalt</option>
+      </select>
+    </div>
+  </header>
 
-<!-- Split Container for Editor & PDF Viewer -->
-<div id="split-container">
-    <!-- Editor Pane -->
-    <div id="editor-container" class="pane"></div>
-    <!-- PDF Viewer Pane -->
-    <div id="pdf-container" class="pane"></div>
-</div>
+  <!-- Main Container: File Explorer Sidebar + Content -->
+  <div id="main-container" class="flex h-[calc(100vh-64px)]">
+    <!-- File Explorer Sidebar -->
+    <div id="file-explorer" class="w-64 overflow-y-auto p-4">
+      <h2 class="font-bold text-lg mb-2">Files</h2>
+      <div id="file-tree"></div>
+      <div class="mt-2">
+        <button id="new-file-button" class="explorer-button">New File</button>
+        <button id="new-folder-button" class="explorer-button">New Folder</button>
+      </div>
+    </div>
 
-<script>
+    <!-- Content Container (Editor + PDF Preview) -->
+    <div id="content-container" class="flex-1">
+      <div id="split-container" class="h-full">
+        <!-- Editor Pane -->
+        <div id="editor-container" class="pane"></div>
+        <!-- PDF Viewer Pane -->
+        <div id="pdf-container" class="pane"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context Menu (hidden by default) -->
+  <div id="context-menu" class="hidden">
+    <div class="menu-item" data-action="rename">Rename</div>
+    <div class="menu-item" data-action="delete">Delete</div>
+  </div>
+
+  <script>
     var socket = io();
     var editor;
     let compileTimeout;
     let realtimeEnabled = false;
+    // Keep track of the currently open file
+    let currentFile = "document.tex";
+    // Store the li element for which the context menu is active
+    let contextMenuTarget = null;
 
-    // (Other non-theme-related code remains unchanged)
+    // Toggle the file explorer sidebar
+    function toggleSidebar() {
+      document.getElementById('file-explorer').classList.toggle('hidden');
+    }
+
+    // Show compile button only for .tex files
+    function updateCompileButtonVisibility() {
+      const compileBtn = document.getElementById("compile-btn");
+      if (currentFile && currentFile.endsWith(".tex")) {
+        compileBtn.style.display = "inline-block";
+      } else {
+        compileBtn.style.display = "none";
+      }
+    }
+
+    // Hide the custom context menu
+    function hideContextMenu() {
+      document.getElementById('context-menu').classList.add('hidden');
+      contextMenuTarget = null;
+    }
+
+    // Show the custom context menu at (x, y)
+    function showContextMenu(x, y) {
+      const menu = document.getElementById('context-menu');
+      menu.style.left = x + 'px';
+      menu.style.top = y + 'px';
+      menu.classList.remove('hidden');
+    }
+
+    // Handle clicks on context menu items
+    document.getElementById('context-menu').addEventListener('click', function(e) {
+      const action = e.target.getAttribute('data-action');
+      if (!action || !contextMenuTarget) return;
+      const itemPath = contextMenuTarget.dataset.path;
+      if (action === "rename") {
+        const newName = prompt("Enter new name:", contextMenuTarget.textContent.trim());
+        if (newName && newName !== contextMenuTarget.textContent.trim()) {
+          // Prepare new path by replacing the last segment.
+          let parts = itemPath.split('/');
+          parts[parts.length - 1] = newName;
+          const newPath = parts.join('/');
+          fetch('/api/file/rename', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ oldPath: itemPath, newPath: newPath })
+          })
+          .then(response => {
+            if (!response.ok) throw new Error("Rename failed");
+            return response.json();
+          })
+          .then(() => {
+            fetchFileTree(() => {
+              // If the renamed item was currently open, reload it.
+              if (currentFile === itemPath) {
+                currentFile = newPath;
+                loadFile(newPath);
+              }
+            });
+          })
+          .catch(err => {
+            alert("Error renaming item: " + err.message);
+          });
+        }
+      } else if (action === "delete") {
+        if (confirm("Are you sure you want to delete this item?")) {
+          fetch('/api/file?path=' + encodeURIComponent(itemPath), {
+            method: 'DELETE'
+          })
+          .then(response => {
+            if (!response.ok) throw new Error("Deletion failed");
+            return response.json();
+          })
+          .then(() => {
+            fetchFileTree(() => {
+              // If the deleted item was open, clear the editor.
+              if (currentFile === itemPath) {
+                currentFile = "";
+                if (editor) editor.setValue("");
+                updateCompileButtonVisibility();
+              }
+            });
+          })
+          .catch(err => {
+            alert("Error deleting item: " + err.message);
+          });
+        }
+      }
+      hideContextMenu();
+    });
+
+    // Hide context menu on any click outside it
+    document.addEventListener('click', function(e) {
+      hideContextMenu();
+    });
+
+    // When the document is loaded, initialize toggles and fetch the file tree.
+    document.addEventListener("DOMContentLoaded", function(){
+      const ignoreCheckbox = document.getElementById('ignore-warnings');
+      const ignoreIndicator = document.getElementById('ignore-warnings-indicator');
+      const savedIgnore = localStorage.getItem("ignoreWarnings") === "true";
+      ignoreCheckbox.checked = savedIgnore;
+      if (savedIgnore) {
+        ignoreIndicator.classList.add('translate-x-5', 'bg-green-500');
+        ignoreIndicator.classList.remove('bg-white');
+      } else {
+        ignoreIndicator.classList.remove('translate-x-5', 'bg-green-500');
+        ignoreIndicator.classList.add('bg-white');
+      }
+      ignoreCheckbox.addEventListener('change', function () {
+        if (this.checked) {
+          ignoreIndicator.classList.add('translate-x-5', 'bg-green-500');
+          ignoreIndicator.classList.remove('bg-white');
+        } else {
+          ignoreIndicator.classList.remove('translate-x-5', 'bg-green-500');
+          ignoreIndicator.classList.add('bg-white');
+        }
+        localStorage.setItem("ignoreWarnings", this.checked);
+      });
+      fetchFileTree();
+      updateCompileButtonVisibility();
+    });
+
+    // Fetch the file tree from the API.
+    // Accepts an optional callback to run after rendering.
+    function fetchFileTree(callback) {
+      fetch('/api/files')
+        .then(response => response.json())
+        .then(data => {
+          renderFileTree(data, document.getElementById('file-tree'));
+          if (callback) callback();
+        })
+        .catch(err => console.error("Error fetching file tree:", err));
+    }
+
+    // Recursive function to render the file tree.
+    function renderFileTree(tree, container) {
+      const ul = document.createElement('ul');
+      tree.forEach(item => {
+        const li = document.createElement('li');
+        li.dataset.path = item.path;
+        if (item.isDirectory) {
+          li.textContent = item.name;
+          li.classList.add('folder');
+          // Left-click toggles nested children.
+          li.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const nestedUl = this.querySelector('ul');
+            if (nestedUl) nestedUl.classList.toggle('hidden');
+          });
+          // Right-click shows context menu.
+          li.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            contextMenuTarget = li;
+            showContextMenu(e.pageX, e.pageY);
+          });
+          if (item.children && item.children.length > 0) {
+            const nestedUl = document.createElement('ul');
+            renderFileTree(item.children, nestedUl);
+            li.appendChild(nestedUl);
+          }
+        } else {
+          li.textContent = item.name;
+          li.classList.add('file');
+          li.addEventListener('click', function(e) {
+            e.stopPropagation();
+            // Remove previous selection and mark this as selected.
+            document.querySelectorAll('#file-explorer .selected').forEach(el => el.classList.remove('selected'));
+            li.classList.add('selected');
+            loadFile(li.dataset.path);
+          });
+          li.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            contextMenuTarget = li;
+            showContextMenu(e.pageX, e.pageY);
+          });
+        }
+        ul.appendChild(li);
+      });
+      container.innerHTML = '';
+      container.appendChild(ul);
+    }
+
+    // Load file content into the editor.
+    function loadFile(path) {
+      fetch('/api/file?path=' + encodeURIComponent(path))
+        .then(response => {
+          if (!response.ok) throw new Error("File not found or error reading file");
+          return response.json();
+        })
+        .then(data => {
+          currentFile = data.path;
+          if (editor) editor.setValue(data.content);
+          // Mark the corresponding element as selected.
+          document.querySelectorAll('#file-explorer .selected').forEach(el => el.classList.remove('selected'));
+          const target = document.querySelector(`#file-explorer li[data-path="${data.path}"]`);
+          if (target) target.classList.add('selected');
+          updateCompileButtonVisibility();
+        })
+        .catch(err => {
+          console.error("Error loading file:", err);
+          alert("Could not load file: " + err.message);
+        });
+    }
+
+    // New File button event handler.
+    document.getElementById('new-file-button').addEventListener('click', function () {
+      const newFileName = prompt("Enter new file name (e.g., newfile.tex):");
+      if (newFileName) {
+        fetch('/api/file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: newFileName, content: "" })
+        })
+        .then(response => {
+          if (!response.ok) throw new Error("Could not create file.");
+          return response.json();
+        })
+        .then(() => {
+          // Immediately load the new file and refresh the file tree.
+          loadFile(newFileName);
+          fetchFileTree();
+        })
+        .catch(err => {
+          console.error("Error creating file:", err);
+          alert("Error creating file: " + err.message);
+        });
+      }
+    });
+
+    // New Folder button event handler.
+    document.getElementById('new-folder-button').addEventListener('click', function () {
+      let basePath = "";
+      // If a folder is selected, create inside that folder.
+      const selected = document.querySelector('#file-explorer .selected');
+      if (selected && selected.classList.contains('folder')) {
+        basePath = selected.dataset.path + "/";
+      }
+      const folderName = prompt("Enter new folder name:");
+      if (folderName) {
+        const fullPath = basePath + folderName;
+        fetch('/api/folder', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: fullPath })
+        })
+        .then(response => {
+          if (!response.ok) throw new Error("Could not create folder.");
+          return response.json();
+        })
+        .then(() => {
+          fetchFileTree();
+        })
+        .catch(err => {
+          console.error("Error creating folder:", err);
+          alert("Error creating folder: " + err.message);
+        });
+      }
+    });
 
     require(['vs/editor/editor.main'], function () {
-        monaco.languages.register({id: 'latex'});
-        monaco.languages.setMonarchTokensProvider('latex', {
-            tokenizer: {
-                root: [
-                    [/%.*$/, "comment"],
-                    [/\\[a-zA-Z]+/, "keyword"],
-                    [/\\./, "keyword"],
-                    [/\$[^$]*\$/, "string"],
-                    [/[{}]/, "delimiter"],
-                ]
-            }
-        });
-
-        editor = monaco.editor.create(document.getElementById('editor-container'), {
-            value: '\\documentclass{article}\n\\begin{document}\nHello, LaTeX!\n\\end{document}',
-            language: 'latex',
-            theme: window.initialMonacoTheme,
-            minimap: {enabled: false},
-            automaticLayout: false
-        });
-
-        editor.getModel().onDidChangeContent(() => {
-            socket.emit('update_text', {content: editor.getValue()});
-            if (realtimeEnabled) {
-                clearTimeout(compileTimeout);
-                compileTimeout = setTimeout(compileLatex, 1000);
-            }
-        });
-
-        socket.emit('update_text', {content: editor.getValue()});
-        socket.emit('compile_latex');
-
-        // Use the exposed function from theme.js to update the editor theme
-        updateEditorTheme(window.initialMonacoTheme);
+      monaco.languages.register({id: 'latex'});
+      monaco.languages.setMonarchTokensProvider('latex', {
+        tokenizer: {
+          root: [
+            [/%.*$/, "comment"],
+            [/\\[a-zA-Z]+/, "keyword"],
+            [/\\./, "keyword"],
+            [/\$[^$]*\$/, "string"],
+            [/[{}]/, "delimiter"],
+          ]
+        }
+      });
+      editor = monaco.editor.create(document.getElementById('editor-container'), {
+        value: '\\documentclass{article}\n\\begin{document}\nHello, LaTeX!\n\\end{document}',
+        language: 'latex',
+        theme: window.initialMonacoTheme,
+        minimap: {enabled: false},
+        automaticLayout: false
+      });
+      editor.getModel().onDidChangeContent(() => {
+        socket.emit('update_text', { content: editor.getValue(), path: currentFile });
+        if (realtimeEnabled) {
+          clearTimeout(compileTimeout);
+          compileTimeout = setTimeout(compileLatex, 1000);
+        }
+      });
+      socket.emit('update_text', { content: editor.getValue(), path: currentFile });
+      socket.emit('compile_latex');
+      updateEditorTheme(window.initialMonacoTheme);
     });
 
     function compileLatex() {
-        let ignoreWarnings = document.getElementById('ignore-warnings').checked;
-        if (realtimeEnabled || event?.type === 'click') {
-            socket.emit('compile_latex', {ignoreWarnings: ignoreWarnings});
-        }
+      let ignoreWarnings = document.getElementById('ignore-warnings').checked;
+      // Always emit the compile event when the button is clicked.
+      socket.emit('compile_latex', { ignoreWarnings: ignoreWarnings, path: currentFile });
     }
 
     socket.on('compilation_done', function (data) {
-        var pdfContainer = document.getElementById('pdf-container');
-        if (data.status === 'success') {
-            if (!document.getElementById('pdf-viewer')) {
-                pdfContainer.innerHTML = '<iframe id="pdf-viewer" src="/pdf#toolbar=0" style="width: 100%; height: 100%; border: none;"></iframe>';
-            }
-            document.getElementById('pdf-viewer').src = '/pdf?ts=' + new Date().getTime() + '#toolbar=0';
-        } else {
-            pdfContainer.innerHTML = `
+      var pdfContainer = document.getElementById('pdf-container');
+      if (data.status === 'success') {
+        if (!document.getElementById('pdf-viewer')) {
+          pdfContainer.innerHTML = '<iframe id="pdf-viewer" src="/pdf#toolbar=0" style="width: 100%; height: 100%; border: none;"></iframe>';
+        }
+        document.getElementById('pdf-viewer').src = '/pdf?ts=' + new Date().getTime() + '#toolbar=0';
+      } else {
+        pdfContainer.innerHTML = `
           <div style="
               height: 100%;
               width: 100%;
@@ -145,35 +497,32 @@
             <pre style="white-space: pre-wrap;">${data.logs}</pre>
           </div>
         `;
-        }
+      }
     });
 
     function toggleRealtime() {
-        realtimeEnabled = document.getElementById('realtime-toggle').checked;
-        localStorage.setItem("realtime", realtimeEnabled);
-
-        let indicator = document.getElementById('toggle-indicator');
-        if (realtimeEnabled) {
-            indicator.classList.add('translate-x-5', 'bg-green-500');
-            indicator.classList.remove('bg-white');
-        } else {
-            indicator.classList.remove('translate-x-5', 'bg-green-500');
-            indicator.classList.add('bg-white');
-        }
+      realtimeEnabled = document.getElementById('realtime-toggle').checked;
+      localStorage.setItem("realtime", realtimeEnabled);
+      let indicator = document.getElementById('toggle-indicator');
+      if (realtimeEnabled) {
+        indicator.classList.add('translate-x-5', 'bg-green-500');
+        indicator.classList.remove('bg-white');
+      } else {
+        indicator.classList.remove('translate-x-5', 'bg-green-500');
+        indicator.classList.add('bg-white');
+      }
     }
 
     require(['split'], function (Split) {
-        Split(['#editor-container', '#pdf-container'], {
-            sizes: [50, 50],
-            minSize: 300,
-            gutterSize: 5,
-            onDrag: function () {
-                if (editor) {
-                    editor.layout();
-                }
-            }
-        });
+      Split(['#editor-container', '#pdf-container'], {
+        sizes: [50, 50],
+        minSize: 300,
+        gutterSize: 5,
+        onDrag: function () {
+          if (editor) editor.layout();
+        }
+      });
     });
-</script>
+  </script>
 </body>
 </html>
