@@ -86,21 +86,7 @@
     .explorer-button:hover {
       background: var(--gutter-color);
     }
-    /* Loading animation overlay */
-    #loading-animation {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.25);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-    }
-    /* Hide the loading overlay by default */
-    .hidden {
-      display: none;
-    }
-    /* Spinner styles */
+    /* Spinner overlay for PDF viewer */
     .loader {
       border: 4px solid rgba(255, 255, 255, 0.3);
       border-top: 4px solid #3498db;
@@ -112,6 +98,24 @@
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
+    }
+    /* The PDF container is now relative so its children can be positioned */
+    #pdf-container {
+      position: relative;
+    }
+    /* Spinner overlay covers the PDF area only */
+    #pdf-loading {
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+    /* Hidden state */
+    .hidden {
+      display: none;
     }
   </style>
 </head>
@@ -163,11 +167,6 @@
     </div>
   </header>
 
-  <!-- Loading Animation Overlay -->
-  <div id="loading-animation" class="hidden">
-    <div class="loader"></div>
-  </div>
-
   <!-- Main Container: File Explorer Sidebar + Content -->
   <div id="main-container" class="flex h-[calc(100vh-64px)]">
     <!-- File Explorer Sidebar -->
@@ -185,8 +184,13 @@
       <div id="split-container" class="h-full">
         <!-- Editor Pane -->
         <div id="editor-container" class="pane"></div>
-        <!-- PDF Viewer Pane -->
-        <div id="pdf-container" class="pane"></div>
+        <!-- PDF Viewer Pane (now with relative positioning) -->
+        <div id="pdf-container" class="pane">
+          <!-- PDF loading spinner overlay (initially hidden) -->
+          <div id="pdf-loading" class="hidden">
+            <div class="loader"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -244,7 +248,6 @@
       if (action === "rename") {
         const newName = prompt("Enter new name:", contextMenuTarget.textContent.trim());
         if (newName && newName !== contextMenuTarget.textContent.trim()) {
-          // Prepare new path by replacing the last segment.
           let parts = itemPath.split('/');
           parts[parts.length - 1] = newName;
           const newPath = parts.join('/');
@@ -259,7 +262,6 @@
           })
           .then(() => {
             fetchFileTree(() => {
-              // If the renamed item was currently open, reload it.
               if (currentFile === itemPath) {
                 currentFile = newPath;
                 loadFile(newPath);
@@ -281,7 +283,6 @@
           })
           .then(() => {
             fetchFileTree(() => {
-              // If the deleted item was open, clear the editor.
               if (currentFile === itemPath) {
                 currentFile = "";
                 if (editor) editor.setValue("");
@@ -325,11 +326,9 @@
         }
         localStorage.setItem("ignoreWarnings", this.checked);
       });
-      // (Other DOMContentLoaded setups can go here if needed)
     });
 
     // Fetch the file tree from the API.
-    // Accepts an optional callback to run after rendering.
     function fetchFileTree(callback) {
       fetch('/api/files')
         .then(response => response.json())
@@ -349,13 +348,11 @@
         if (item.isDirectory) {
           li.textContent = item.name;
           li.classList.add('folder');
-          // Left-click toggles nested children.
           li.addEventListener('click', function(e) {
             e.stopPropagation();
             const nestedUl = this.querySelector('ul');
             if (nestedUl) nestedUl.classList.toggle('hidden');
           });
-          // Right-click shows context menu.
           li.addEventListener('contextmenu', function(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -372,7 +369,6 @@
           li.classList.add('file');
           li.addEventListener('click', function(e) {
             e.stopPropagation();
-            // Remove previous selection and mark this as selected.
             document.querySelectorAll('#file-explorer .selected').forEach(el => el.classList.remove('selected'));
             li.classList.add('selected');
             loadFile(li.dataset.path);
@@ -404,7 +400,6 @@
           return response.json();
         })
         .then(() => {
-          // Immediately load the new file and refresh the file tree.
           loadFile(newFileName);
           fetchFileTree();
         })
@@ -418,7 +413,6 @@
     // New Folder button event handler.
     document.getElementById('new-folder-button').addEventListener('click', function () {
       let basePath = "";
-      // If a folder is selected, create inside that folder.
       const selected = document.querySelector('#file-explorer .selected');
       if (selected && selected.classList.contains('folder')) {
         basePath = selected.dataset.path + "/";
@@ -445,9 +439,7 @@
       }
     });
 
-    // --- New helper functions for initial .tex file handling ---
-
-    // Recursively search the file tree for the first .tex file.
+    // --- Helper functions for initial .tex file handling ---
     function findFirstTexFile(tree) {
       for (let item of tree) {
         if (!item.isDirectory && item.name.toLowerCase().endsWith('.tex')) {
@@ -461,9 +453,6 @@
       return null;
     }
 
-    // Initialize the editor with a .tex file.
-    // If a .tex file exists, load it.
-    // Otherwise, create a new document.tex with base content.
     function initializeEditorWithTexFile(treeData) {
       const texFile = findFirstTexFile(treeData);
       if (texFile) {
@@ -505,7 +494,6 @@
           if (editor) {
             editor.setValue(data.content);
           }
-          // Mark the corresponding element as selected.
           document.querySelectorAll('#file-explorer .selected').forEach(el => el.classList.remove('selected'));
           const target = document.querySelector(`#file-explorer li[data-path="${data.path}"]`);
           if (target) target.classList.add('selected');
@@ -517,7 +505,6 @@
           alert("Could not load file: " + err.message);
         });
     }
-
     // --- End helper functions ---
 
     require(['vs/editor/editor.main'], function () {
@@ -549,30 +536,38 @@
       });
       socket.emit('update_text', { content: editor.getValue(), path: currentFile });
       updateEditorTheme(window.initialMonacoTheme);
-
-      // After the editor is ready, fetch the file tree and initialize the editor.
       fetchFileTree(initializeEditorWithTexFile);
     });
 
-    // Modified compileLatex function to show loading animation.
+    // Modified compileLatex to show the spinner in the PDF viewer only.
     function compileLatex() {
-      // Show the loading spinner
-      document.getElementById('loading-animation').classList.remove('hidden');
+      // Show the spinner overlay on the PDF viewer.
+      document.getElementById('pdf-loading').classList.remove('hidden');
       let ignoreWarnings = document.getElementById('ignore-warnings').checked;
       socket.emit('compile_latex', { ignoreWarnings: ignoreWarnings, path: currentFile });
     }
 
-    // Hide the spinner when compilation is done.
     socket.on('compilation_done', function (data) {
-      document.getElementById('loading-animation').classList.add('hidden');
-      var pdfContainer = document.getElementById('pdf-container');
+      const pdfContainer = document.getElementById('pdf-container');
+      const pdfLoading = document.getElementById('pdf-loading');
       if (data.status === 'success') {
         const pdfFileName = currentFile.replace(/\.tex$/, '.pdf');
-        if (!document.getElementById('pdf-viewer')) {
-          pdfContainer.innerHTML = '<iframe id="pdf-viewer" src="/pdf?file=' + encodeURIComponent(pdfFileName) + '#toolbar=0" style="width: 100%; height: 100%; border: none;"></iframe>';
+        let iframe = document.getElementById('pdf-viewer');
+        if (!iframe) {
+          // Create a new iframe inside the pdf container.
+          pdfContainer.innerHTML = `<iframe id="pdf-viewer" src="/pdf?file=${encodeURIComponent(pdfFileName)}#toolbar=0" style="width: 100%; height: 100%; border: none;"></iframe>`;
+          // Re-append the spinner overlay.
+          pdfContainer.appendChild(pdfLoading);
+        } else {
+          iframe.src = '/pdf?file=' + encodeURIComponent(pdfFileName) + '&ts=' + new Date().getTime() + '#toolbar=0';
         }
-        document.getElementById('pdf-viewer').src = '/pdf?file=' + encodeURIComponent(pdfFileName) + '&ts=' + new Date().getTime() + '#toolbar=0';
+        // Attach an onload event to the iframe to hide the spinner once the PDF loads.
+        iframe = document.getElementById('pdf-viewer');
+        iframe.onload = function() {
+          pdfLoading.classList.add('hidden');
+        };
       } else {
+        // On error, show the error message and hide the spinner.
         pdfContainer.innerHTML = `
           <div style="
               height: 100%;
@@ -588,6 +583,7 @@
             <pre style="white-space: pre-wrap;">${data.logs}</pre>
           </div>
         `;
+        pdfLoading.classList.add('hidden');
       }
     });
 
