@@ -305,13 +305,56 @@ def compile_latex(data=None):
         f.write(processed_content)
 
     workdir = os.path.dirname(abs_tex_file)
-    process = subprocess.run(
+    base_name = os.path.splitext(os.path.basename(tex_file))[0]
+
+    bibliography = r"\bibliography" in content
+
+    # First pass of pdflatex
+    p1 = subprocess.run(
         ["pdflatex", "-shell-escape", "-interaction=nonstopmode", os.path.basename(tex_file)],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         cwd=workdir
     )
-    logs = process.stdout.decode() + process.stderr.decode()
-    status = "error" if process.returncode != 0 and not ignore_warnings else "success"
+
+    if bibliography:
+
+        # Run bibtex
+        bib = subprocess.run(
+            ["bibtex", base_name],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            cwd=workdir
+        )
+
+        # Second pass of pdflatex
+        p2 = subprocess.run(
+            ["pdflatex", "-shell-escape", "-interaction=nonstopmode", os.path.basename(tex_file)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            cwd=workdir
+        )
+
+        # Third pass of pdflatex
+        p3 = subprocess.run(
+            ["pdflatex", "-shell-escape", "-interaction=nonstopmode", os.path.basename(tex_file)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            cwd=workdir
+        )
+
+    # Combine logs from all commands
+    logs = p1.stdout.decode() + p1.stderr.decode()
+
+    if bibliography:
+        logs += (
+            bib.stdout.decode() + bib.stderr.decode() +
+            p2.stdout.decode() + p2.stderr.decode() +
+            p3.stdout.decode() + p3.stderr.decode()
+        )
+
+    # Check for errors in any of the steps
+    if (p1.returncode or (bibliography and (bib.returncode or p2.returncode or p3.returncode))) != 0 and not ignore_warnings:
+        status = "error"
+    else:
+        status = "success"
+
     emit('compilation_done', {'status': status, 'logs': logs}, broadcast=True)
 
 
