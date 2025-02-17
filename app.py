@@ -11,6 +11,7 @@ TEMP_DIR = "temp"
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(TEMP_DIR, exist_ok=True)
 
+
 #############################
 #  File System API Endpoints (operating in DATA_DIR)
 #############################
@@ -33,10 +34,12 @@ def get_file_tree(directory):
             })
     return tree
 
+
 @app.route('/api/files', methods=['GET'])
 def api_files():
     tree = get_file_tree(DATA_DIR)
     return json.dumps(tree)
+
 
 @app.route('/api/file', methods=['GET'])
 def api_get_file():
@@ -52,6 +55,7 @@ def api_get_file():
         content = f.read()
     return json.dumps({'path': path, 'content': content})
 
+
 @app.route('/api/file', methods=['POST'])
 def api_post_file():
     data = request.get_json()
@@ -66,6 +70,7 @@ def api_post_file():
     with open(abs_path, 'w', encoding='utf-8') as f:
         f.write(content)
     return json.dumps({'status': 'success'})
+
 
 @app.route('/api/file', methods=['DELETE'])
 def api_delete_file():
@@ -83,6 +88,7 @@ def api_delete_file():
         return json.dumps({'status': 'success'})
     return "File not found", 404
 
+
 @app.route('/api/file/rename', methods=['POST'])
 def api_rename_file():
     data = request.get_json()
@@ -99,6 +105,7 @@ def api_rename_file():
         return json.dumps({'status': 'success'})
     return "File not found", 404
 
+
 @app.route('/api/folder', methods=['POST'])
 def api_create_folder():
     data = request.get_json()
@@ -109,6 +116,7 @@ def api_create_folder():
         return "Invalid path", 400
     os.makedirs(folder_path, exist_ok=True)
     return json.dumps({'status': 'success'})
+
 
 #############################
 #  LaTeX Compilation Helpers
@@ -133,12 +141,14 @@ def get_language(file_path):
     else:
         return "text"
 
+
 def get_source_segment(source, node):
     lines = source.splitlines()
     if hasattr(node, 'lineno') and hasattr(node, 'end_lineno'):
         return "\n".join(lines[node.lineno - 1: node.end_lineno])
     else:
         return "Source segment not available."
+
 
 def extract_code_with_ast(file_text, selector):
     try:
@@ -161,7 +171,8 @@ def extract_code_with_ast(file_text, selector):
         return f"Class '{class_name}' not found."
     else:
         for node in tree.body:
-            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and getattr(node, 'name', None) == selector:
+            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and getattr(node, 'name',
+                                                                                                   None) == selector:
                 return get_source_segment(file_text, node)
             if isinstance(node, ast.Assign):
                 for target in node.targets:
@@ -178,10 +189,12 @@ def extract_code_with_ast(file_text, selector):
                                 return get_source_segment(file_text, subnode)
         return f"Element '{selector}' not found."
 
+
 def ensure_minted_package(content):
     if '\\usepackage{minted}' not in content:
         content = content.replace('\\begin{document}', '\\usepackage{minted}\n\\begin{document}', 1)
     return content
+
 
 def process_github_commands(content):
     pattern = r'\\Github\{([^}]*)\}'
@@ -241,9 +254,9 @@ def process_github_commands(content):
             code_snippet = f"Error processing \\Github command: {str(e)}"
 
         minted_block = (
-            "\\begin{minted}[fontsize=\\footnotesize, breaklines, breakanywhere]{" + language + "}\n" +
-            code_snippet +
-            "\n\\end{minted}"
+                "\\begin{minted}[fontsize=\\footnotesize, breaklines, breakanywhere]{" + language + "}\n" +
+                code_snippet +
+                "\n\\end{minted}"
         )
         return minted_block
 
@@ -251,30 +264,31 @@ def process_github_commands(content):
     new_content = ensure_minted_package(new_content)
     return new_content
 
+
 ################################
 #  Socket.IO Event Handlers
 ################################
 
 @socketio.on('update_text')
 def handle_text_update(data):
-    # Save updated file content to DATA_DIR
-    file_path = data.get('path', 'document.tex')
+    file_path = data.get('path')
+    if not file_path:
+        return  # or emit an error
     abs_path = os.path.join(DATA_DIR, file_path)
     os.makedirs(os.path.dirname(abs_path), exist_ok=True)
     with open(abs_path, 'w', encoding='utf-8') as f:
         f.write(data.get('content', ''))
-    # Broadcast update (if needed)
     emit('update_text', data, broadcast=True, include_self=False)
+
 
 @socketio.on('compile_latex')
 def compile_latex(data=None):
-    ignore_warnings = False
-    if data and 'ignoreWarnings' in data:
-        ignore_warnings = data['ignoreWarnings']
-    tex_file = "document.tex"
-    if data and 'path' in data and data['path'].endswith('.tex'):
-        tex_file = data['path']
-    # Clear TEMP_DIR and copy all files from DATA_DIR into TEMP_DIR for compilation.
+    ignore_warnings = data.get('ignoreWarnings', False) if data else False
+    tex_file = data.get('path')
+    if not tex_file or not tex_file.endswith('.tex'):
+        emit('compilation_done', {'status': 'error', 'logs': 'No valid .tex file provided.'}, broadcast=True)
+        return
+
     if os.path.exists(TEMP_DIR):
         shutil.rmtree(TEMP_DIR)
     os.makedirs(TEMP_DIR, exist_ok=True)
@@ -300,23 +314,26 @@ def compile_latex(data=None):
     status = "error" if process.returncode != 0 and not ignore_warnings else "success"
     emit('compilation_done', {'status': status, 'logs': logs}, broadcast=True)
 
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
+
 @app.route('/pdf')
 def serve_pdf():
-    # Serve the PDF from TEMP_DIR (the compilation folder)
-    pdf_path = os.path.join(TEMP_DIR, "document.pdf")
+    pdf_file = request.args.get('file', 'document.pdf')
+    pdf_path = os.path.join(TEMP_DIR, pdf_file)
     if not os.path.exists(pdf_path):
         return "No PDF available", 404
 
-    with open(pdf_path, "rb") as pdf_file:
-        response = Response(pdf_file.read(), mimetype="application/pdf")
+    with open(pdf_path, "rb") as pdf_file_obj:
+        response = Response(pdf_file_obj.read(), mimetype="application/pdf")
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
         return response
+
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)

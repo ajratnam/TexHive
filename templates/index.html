@@ -171,7 +171,7 @@
     let compileTimeout;
     let realtimeEnabled = false;
     // Keep track of the currently open file
-    let currentFile = "document.tex";
+    let currentFile = "";
     // Store the li element for which the context menu is active
     let contextMenuTarget = null;
 
@@ -270,7 +270,7 @@
       hideContextMenu();
     });
 
-    // When the document is loaded, initialize toggles and fetch the file tree.
+    // Initialize toggles for ignore warnings and realtime
     document.addEventListener("DOMContentLoaded", function(){
       const ignoreCheckbox = document.getElementById('ignore-warnings');
       const ignoreIndicator = document.getElementById('ignore-warnings-indicator');
@@ -293,8 +293,7 @@
         }
         localStorage.setItem("ignoreWarnings", this.checked);
       });
-      fetchFileTree();
-      updateCompileButtonVisibility();
+      // (Other DOMContentLoaded setups can go here if needed)
     });
 
     // Fetch the file tree from the API.
@@ -304,7 +303,7 @@
         .then(response => response.json())
         .then(data => {
           renderFileTree(data, document.getElementById('file-tree'));
-          if (callback) callback();
+          if (callback) callback(data);
         })
         .catch(err => console.error("Error fetching file tree:", err));
     }
@@ -357,28 +356,6 @@
       });
       container.innerHTML = '';
       container.appendChild(ul);
-    }
-
-    // Load file content into the editor.
-    function loadFile(path) {
-      fetch('/api/file?path=' + encodeURIComponent(path))
-        .then(response => {
-          if (!response.ok) throw new Error("File not found or error reading file");
-          return response.json();
-        })
-        .then(data => {
-          currentFile = data.path;
-          if (editor) editor.setValue(data.content);
-          // Mark the corresponding element as selected.
-          document.querySelectorAll('#file-explorer .selected').forEach(el => el.classList.remove('selected'));
-          const target = document.querySelector(`#file-explorer li[data-path="${data.path}"]`);
-          if (target) target.classList.add('selected');
-          updateCompileButtonVisibility();
-        })
-        .catch(err => {
-          console.error("Error loading file:", err);
-          alert("Could not load file: " + err.message);
-        });
     }
 
     // New File button event handler.
@@ -436,6 +413,82 @@
       }
     });
 
+    // --- New helper functions for initial .tex file handling ---
+
+    // Recursively search the file tree for the first .tex file.
+    function findFirstTexFile(tree) {
+      for (let item of tree) {
+        if (!item.isDirectory && item.name.toLowerCase().endsWith('.tex')) {
+          return item.path;
+        }
+        if (item.isDirectory && item.children) {
+          const found = findFirstTexFile(item.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+
+    // Initialize the editor with a .tex file.
+    // If a .tex file exists, load it.
+    // Otherwise, create a new document.tex with base content.
+    function initializeEditorWithTexFile(treeData) {
+      const texFile = findFirstTexFile(treeData);
+      console.log(texFile);
+      if (texFile) {
+        currentFile = texFile;
+        loadFile(currentFile);
+      } else {
+        currentFile = "document.tex";
+        const baseContent = '\\documentclass{article}\n\\begin{document}\nHello, LaTeX!\n\\end{document}';
+        fetch('/api/file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: currentFile, content: baseContent })
+        })
+        .then(response => {
+          if (!response.ok) throw new Error("Could not create document.tex");
+          return response.json();
+        })
+        .then(() => {
+          fetchFileTree(() => {
+            loadFile(currentFile);
+          });
+        })
+        .catch(err => {
+          console.error("Error creating document.tex:", err);
+          alert("Error creating document.tex: " + err.message);
+        });
+      }
+    }
+
+    // Load file content into the editor.
+    function loadFile(path) {
+      fetch('/api/file?path=' + encodeURIComponent(path))
+        .then(response => {
+          if (!response.ok) throw new Error("File not found or error reading file");
+          return response.json();
+        })
+        .then(data => {
+          currentFile = data.path;
+          if (editor) {
+            editor.setValue(data.content);
+          }
+          // Mark the corresponding element as selected.
+          document.querySelectorAll('#file-explorer .selected').forEach(el => el.classList.remove('selected'));
+          const target = document.querySelector(`#file-explorer li[data-path="${data.path}"]`);
+          if (target) target.classList.add('selected');
+          updateCompileButtonVisibility();
+          compileLatex();
+        })
+        .catch(err => {
+          console.error("Error loading file:", err);
+          alert("Could not load file: " + err.message);
+        });
+    }
+
+    // --- End helper functions ---
+
     require(['vs/editor/editor.main'], function () {
       monaco.languages.register({id: 'latex'});
       monaco.languages.setMonarchTokensProvider('latex', {
@@ -456,31 +509,34 @@
         minimap: {enabled: false},
         automaticLayout: false
       });
-      editor.getModel().onDidChangeContent(() => {
-        socket.emit('update_text', { content: editor.getValue(), path: currentFile });
-        if (realtimeEnabled) {
-          clearTimeout(compileTimeout);
-          compileTimeout = setTimeout(compileLatex, 1000);
-        }
-      });
+        editor.getModel().onDidChangeContent(() => {
+          socket.emit('update_text', { content: editor.getValue(), path: currentFile });
+          if (realtimeEnabled) {
+            clearTimeout(compileTimeout);
+            compileTimeout = setTimeout(compileLatex, 1000);
+          }
+        });
       socket.emit('update_text', { content: editor.getValue(), path: currentFile });
       socket.emit('compile_latex');
       updateEditorTheme(window.initialMonacoTheme);
+
+      // After the editor is ready, fetch the file tree and initialize the editor.
+      fetchFileTree(initializeEditorWithTexFile);
     });
 
     function compileLatex() {
       let ignoreWarnings = document.getElementById('ignore-warnings').checked;
-      // Always emit the compile event when the button is clicked.
       socket.emit('compile_latex', { ignoreWarnings: ignoreWarnings, path: currentFile });
     }
 
     socket.on('compilation_done', function (data) {
       var pdfContainer = document.getElementById('pdf-container');
       if (data.status === 'success') {
+          const pdfFileName = currentFile.replace(/\.tex$/, '.pdf');
         if (!document.getElementById('pdf-viewer')) {
-          pdfContainer.innerHTML = '<iframe id="pdf-viewer" src="/pdf#toolbar=0" style="width: 100%; height: 100%; border: none;"></iframe>';
+          pdfContainer.innerHTML = '<iframe id="pdf-viewer" src="/pdf?file=${encodeURIComponent(pdfFileName)}#toolbar=0" style="width: 100%; height: 100%; border: none;"></iframe>';
         }
-        document.getElementById('pdf-viewer').src = '/pdf?ts=' + new Date().getTime() + '#toolbar=0';
+        document.getElementById('pdf-viewer').src = '/pdf?file=' + encodeURIComponent(pdfFileName) + '&ts=' + new Date().getTime() + '#toolbar=0';
       } else {
         pdfContainer.innerHTML = `
           <div style="
