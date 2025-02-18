@@ -311,13 +311,12 @@ def compile_latex(data=None):
 
     # First pass of pdflatex
     p1 = subprocess.run(
-        ["pdflatex", "-shell-escape", "-interaction=nonstopmode", os.path.basename(tex_file)],
+        ["pdflatex", "-shell-escape", "-interaction=nonstopmode", "-synctex=1", os.path.basename(tex_file)],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         cwd=workdir
     )
 
     if bibliography:
-
         # Run bibtex
         bib = subprocess.run(
             ["bibtex", base_name],
@@ -327,14 +326,14 @@ def compile_latex(data=None):
 
         # Second pass of pdflatex
         p2 = subprocess.run(
-            ["pdflatex", "-shell-escape", "-interaction=nonstopmode", os.path.basename(tex_file)],
+            ["pdflatex", "-shell-escape", "-interaction=nonstopmode", "-synctex=1", os.path.basename(tex_file)],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             cwd=workdir
         )
 
         # Third pass of pdflatex
         p3 = subprocess.run(
-            ["pdflatex", "-shell-escape", "-interaction=nonstopmode", os.path.basename(tex_file)],
+            ["pdflatex", "-shell-escape", "-interaction=nonstopmode", "-synctex=1", os.path.basename(tex_file)],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             cwd=workdir
         )
@@ -344,9 +343,9 @@ def compile_latex(data=None):
 
     if bibliography:
         logs += (
-            bib.stdout.decode() + bib.stderr.decode() +
-            p2.stdout.decode() + p2.stderr.decode() +
-            p3.stdout.decode() + p3.stderr.decode()
+                bib.stdout.decode() + bib.stderr.decode() +
+                p2.stdout.decode() + p2.stderr.decode() +
+                p3.stdout.decode() + p3.stderr.decode()
         )
 
     # Check for errors in any of the steps

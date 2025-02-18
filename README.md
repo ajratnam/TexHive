@@ -11,7 +11,7 @@ pip install flask flask-socketio eventlet --break-system-packages requests
 
 External Dependencies
 ```bash
-sudo apt install texlive-full
+sudo apt install texlive-full texlive
 ```
 
 Running
