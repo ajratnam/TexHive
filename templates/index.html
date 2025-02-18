@@ -108,7 +108,7 @@
       position: absolute;
       inset: 0;
       background: rgba(255, 255, 255, 0.6);
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       z-index: 10;
@@ -542,7 +542,7 @@
     // Modified compileLatex to show the spinner in the PDF viewer only.
     function compileLatex() {
       // Show the spinner overlay on the PDF viewer.
-      document.getElementById('pdf-loading').classList.remove('hidden');
+      document.getElementById('pdf-loading').style.display = "flex";
       let ignoreWarnings = document.getElementById('ignore-warnings').checked;
       socket.emit('compile_latex', { ignoreWarnings: ignoreWarnings, path: currentFile });
     }
@@ -564,7 +564,7 @@
         // Attach an onload event to the iframe to hide the spinner once the PDF loads.
         iframe = document.getElementById('pdf-viewer');
         iframe.onload = function() {
-          pdfLoading.classList.add('hidden');
+          document.getElementById('pdf-loading').style.display = "none";
         };
       } else {
         // On error, show the error message and hide the spinner.
@@ -583,7 +583,7 @@
             <pre style="white-space: pre-wrap;">${data.logs}</pre>
           </div>
         `;
-        pdfLoading.classList.add('hidden');
+        document.getElementById('pdf-loading').style.display = "none";
       }
     });
 
