@@ -1,7 +1,7 @@
 import re
 import requests
 import textwrap
-from core.utils.ast_helpers import get_language, extract_code_with_ast
+from core.utils.ast_helpers import get_language, py_extract_code_with_ast
 
 
 def ensure_minted_package(content):
@@ -56,7 +56,14 @@ def process_github_commands(content):
                     if r.status_code == 200:
                         file_text = r.text
                         language = get_language(file_path)
-                        code_snippet = extract_code_with_ast(file_text, selector)
+                        # Ajay could you check this part
+                        function_name = f"{language}_extract_code_with_ast"
+
+                        if function_name in globals():
+                            code_snippet = globals()[function_name](file_text, selector)
+                        else:
+                            raise ValueError(f"Function {function_name} not found")
+
                         for _ in range(selector.count('.')):
                             code_snippet = textwrap.dedent(code_snippet)
                     else:
