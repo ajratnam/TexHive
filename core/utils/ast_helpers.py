@@ -1,6 +1,7 @@
 import ast
 import os
 import javalang
+import pycparser
 
 
 def get_language(file_path):
@@ -75,22 +76,29 @@ def java_extract_code_with_ast(file_text, selector):
         tree = javalang.parse.parse(file_text)
     except Exception as e:
         return f"Error parsing file: {str(e)}"
-    # print(tree)
-
+    
     lines = file_text.split("\n")  # Split file into lines for reconstruction
-
+    
     if '.' in selector:
         class_name, method_signature = selector.split('.', 1)
         method_name, param_types = java_parse_method_signature(method_signature)
 
         for class_decl in tree.types:
             if isinstance(class_decl, javalang.tree.ClassDeclaration) and class_decl.name == class_name:
+                matching_methods = []
                 for member in class_decl.body:
                     if isinstance(member, javalang.tree.MethodDeclaration) and member.name == method_name:
                         method_param_types = [java_normalize_type(p.type) for p in member.parameters]
+                        
+                        if not param_types or method_param_types == param_types:
+                            matching_methods.append(member)
 
-                        if method_param_types == param_types:
-                            return java_extract_code_block(lines, member.position[0])
+                if len(matching_methods) == 1:
+                    return java_extract_code_block(lines, matching_methods[0].position[0])
+                elif len(matching_methods) > 1 and param_types:
+                    return "Multiple method signatures found. Please specify the parameters."
+                elif matching_methods:
+                    return java_extract_code_block(lines, matching_methods[0].position[0])
 
                 return f"Method '{method_signature}' not found in class '{class_name}'."
         return f"Class '{class_name}' not found."
@@ -98,7 +106,7 @@ def java_extract_code_with_ast(file_text, selector):
     return f"Element '{selector}' not found."
 
 def java_parse_method_signature(method_signature):
-    """Extract method name and parameter types from a signature."""
+    """Extract method name and parameter types from a signature like sayHello(List<Map<String,List<Integer>>>)."""
     if '(' in method_signature and method_signature.endswith(')'):
         method_name = method_signature.split('(')[0]
         param_list = method_signature[method_signature.index('(') + 1:-1].strip()
@@ -110,7 +118,6 @@ def java_parse_method_signature(method_signature):
         return method_name, param_types
 
     return method_signature, []
-
 
 def java_split_types(param_list):
     """Splits method parameter types while handling nested generic types."""
@@ -134,7 +141,6 @@ def java_split_types(param_list):
 
     return types
 
-
 def java_normalize_type(type_node):
     """Recursively normalizes Java types, including generics and arrays."""
     if isinstance(type_node, javalang.tree.BasicType):
@@ -155,7 +161,6 @@ def java_normalize_type(type_node):
         return java_normalize_type(type_node.name) + "[]" * len(type_node.dimensions)
 
     return str(type_node)
-
 
 def java_extract_code_block(lines, start_line):
     """Extracts the block of code starting from the given line number."""
