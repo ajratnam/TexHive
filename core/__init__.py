@@ -3,17 +3,15 @@ from flask import Flask
 from core.config import Config
 from core.extensions import socketio
 
+
 def create_app():
-    # Determine the absolute paths for templates and static directories
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     template_dir = os.path.join(base_dir, 'templates')
     static_dir = os.path.join(base_dir, 'static')
 
-    # Create the Flask app with the correct folders
     app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
     app.config.from_object(Config)
 
-    # Register blueprints and extensions
     from api.file_api import bp as file_api_bp
     app.register_blueprint(file_api_bp, url_prefix='/api')
 

@@ -5,10 +5,12 @@ from core.utils.file_manager import get_file_tree, read_file, write_file, delete
 
 bp = Blueprint('file_api', __name__)
 
+
 @bp.route('/files', methods=['GET'])
 def api_files():
     tree = get_file_tree(Config.DATA_DIR)
     return jsonify(tree)
+
 
 @bp.route('/file', methods=['GET'])
 def api_get_file():
@@ -23,6 +25,7 @@ def api_get_file():
     content = read_file(abs_path)
     return jsonify({'path': path, 'content': content})
 
+
 @bp.route('/file', methods=['POST'])
 def api_post_file():
     data = request.get_json()
@@ -36,6 +39,7 @@ def api_post_file():
     write_file(abs_path, content)
     return jsonify({'status': 'success'})
 
+
 @bp.route('/file', methods=['DELETE'])
 def api_delete_file():
     path = request.args.get('path')
@@ -48,6 +52,7 @@ def api_delete_file():
         delete_path(abs_path)
         return jsonify({'status': 'success'})
     return "File not found", 404
+
 
 @bp.route('/file/rename', methods=['POST'])
 def api_rename_file():
@@ -63,6 +68,7 @@ def api_rename_file():
         rename_path(old_path, new_path)
         return jsonify({'status': 'success'})
     return "File not found", 404
+
 
 @bp.route('/folder', methods=['POST'])
 def api_create_folder():

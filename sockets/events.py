@@ -4,6 +4,7 @@ from core.utils.file_manager import write_file
 from core.utils.latex_compiler import compile_latex_file
 from flask_socketio import emit
 
+
 def register_socket_events(socketio, app):
     @socketio.on('update_text')
     def handle_text_update(data):

@@ -1,6 +1,6 @@
 import ast
 import os
-import textwrap
+
 
 def get_language(file_path):
     ext = os.path.splitext(file_path)[1].lower()
@@ -21,12 +21,14 @@ def get_language(file_path):
     else:
         return "text"
 
+
 def get_source_segment(source, node):
     lines = source.splitlines()
     if hasattr(node, 'lineno') and hasattr(node, 'end_lineno'):
         return "\n".join(lines[node.lineno - 1: node.end_lineno])
     else:
         return "Source segment not available."
+
 
 def extract_code_with_ast(file_text, selector):
     try:
@@ -49,7 +51,8 @@ def extract_code_with_ast(file_text, selector):
         return f"Class '{class_name}' not found."
     else:
         for node in tree.body:
-            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and getattr(node, 'name', None) == selector:
+            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and getattr(node, 'name',
+                                                                                                   None) == selector:
                 return get_source_segment(file_text, node)
             if isinstance(node, ast.Assign):
                 for target in node.targets:

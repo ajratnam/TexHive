@@ -3,17 +3,18 @@ import requests
 import textwrap
 from core.utils.ast_helpers import get_language, extract_code_with_ast
 
+
 def ensure_minted_package(content):
     if '\\usepackage{minted}' not in content:
         content = content.replace('\\begin{document}', '\\usepackage{minted}\n\\begin{document}', 1)
     return content
+
 
 def process_github_commands(content):
     pattern = r'\\Github\{([^}]*)\}'
 
     def replace_func(match):
         arg = match.group(1).strip()
-        code_snippet = ""
         language = "text"
         try:
             if arg.startswith("http://") or arg.startswith("https://"):
@@ -54,8 +55,8 @@ def process_github_commands(content):
                     r = requests.get(raw_url)
                     if r.status_code == 200:
                         file_text = r.text
-                        code_snippet = extract_code_with_ast(file_text, selector)
                         language = get_language(file_path)
+                        code_snippet = extract_code_with_ast(file_text, selector)
                         for _ in range(selector.count('.')):
                             code_snippet = textwrap.dedent(code_snippet)
                     else:
@@ -66,9 +67,9 @@ def process_github_commands(content):
             code_snippet = f"Error processing \\Github command: {str(e)}"
 
         minted_block = (
-            "\\begin{minted}[fontsize=\\footnotesize, breaklines, breakanywhere]{" + language + "}\n" +
-            code_snippet +
-            "\n\\end{minted}"
+                "\\begin{minted}[fontsize=\\footnotesize, breaklines, breakanywhere]{" + language + "}\n" +
+                code_snippet +
+                "\n\\end{minted}"
         )
         return minted_block
 

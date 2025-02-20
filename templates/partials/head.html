@@ -1,0 +1,28 @@
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TexHive</title>
+
+<!-- Socket.IO -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+
+<!-- Monaco Editor Loader -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.0/min/vs/loader.js"></script>
+<script>
+  require.config({
+    paths: {
+      vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.0/min/vs',
+      split: 'https://cdnjs.cloudflare.com/ajax/libs/split.js/1.6.5/split.min'
+    }
+  });
+</script>
+
+<!-- TailwindCSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Theme CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+<!-- Custom CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+
+<!-- Theme JS -->
+<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
