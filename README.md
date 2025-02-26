@@ -6,7 +6,7 @@
 Python Dependencies
 
 ```bash
-pip3 install javalang flask flask-socketio eventlet requests --break-system-packages 
+pip3 install flask flask-socketio eventlet requests tree-sitter-languages --break-system-packages 
 ```
 
 External Dependencies
