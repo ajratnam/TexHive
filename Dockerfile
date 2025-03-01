@@ -18,7 +18,7 @@ RUN pip3 install flask flask-socketio eventlet requests tree-sitter==0.21.3 tree
 COPY . /TexHive
 
 # Expose port 80
-EXPOSE 80
+EXPOSE 5000
 
 # Define the command to run the application
 CMD ["python3", "app.py"]
