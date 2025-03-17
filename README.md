@@ -3,13 +3,20 @@
 
 ---
 
-Python Dependencies
+Install Poetry
 
 ```bash
-pip3 install flask flask-socketio eventlet requests tree-sitter==0.21.3 tree-sitter-languages --break-system-packages 
+curl -sSL https://install.python-poetry.org | python3 -
 ```
 
-External Dependencies
+Install Dependencies & Activate shell
+
+```bash
+poetry install
+eval $(poetry env activate)
+```
+
+Install External Dependencies
 ```bash
 sudo apt install texlive-full texlive
 ```
