@@ -6,3 +6,5 @@ services:
       - "8000:8000"
     environment:
       - POETRY_VIRTUALENVS_IN_PROJECT=true
+    volumes:
+      - ./data:/app/data
