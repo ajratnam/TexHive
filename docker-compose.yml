@@ -1,0 +1,8 @@
+services:
+  texhive:
+    build:
+      context: .
+    ports:
+      - "8000:8000"
+    environment:
+      - POETRY_VIRTUALENVS_IN_PROJECT=true
