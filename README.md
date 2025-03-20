@@ -25,3 +25,14 @@ Running
 ```bash
 python3 app.py
 ```
+
+Running via Docker
+1) Self build
+```bash
+docker compose up
+```
+
+2) Prebuilt Image
+```bash
+docker run -p 8000:8000 -v ./data:/app/data ajratnam/texhive
+```
