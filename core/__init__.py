@@ -1,5 +1,5 @@
 import os
-from flask import Flask
+from flask import Flask, send_from_directory
 from core.config import Config
 from core.extensions import socketio
 
@@ -22,5 +22,12 @@ def create_app():
 
     from sockets.events import register_socket_events
     register_socket_events(socketio, app)
+
+    @app.route('/<path:path>', methods=['GET'])
+    def serve_react_app(path):
+        if path and os.path.exists(os.path.join('frontend/build', path)):
+            return send_from_directory('frontend/build', path)
+        else:
+            return send_from_directory('frontend/build', 'index.html')
 
     return app

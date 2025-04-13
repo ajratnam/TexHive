@@ -1,5 +1,5 @@
 import os
-from flask import Blueprint, render_template, Response, request
+from flask import Blueprint, render_template, Response, request, send_from_directory
 from core.config import Config
 
 bp = Blueprint('main', __name__)
@@ -7,7 +7,7 @@ bp = Blueprint('main', __name__)
 
 @bp.route('/')
 def index():
-    return render_template('index.html')
+    return send_from_directory('frontend/build', 'index.html')
 
 
 @bp.route('/pdf')
