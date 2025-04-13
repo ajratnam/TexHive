@@ -30,11 +30,6 @@ ENV PYTHONUNBUFFERED=1 \
     POETRY_VIRTUALENVS_IN_PROJECT=true \
     PATH="/root/.local/bin:$PATH"
 
-# Install the full TeXLive package (as required) along with minimal extra tools
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      texlive-full \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
 # Copy Poetry installation and virtual environment from builder stage
 COPY --from=builder /root/.local /root/.local
 COPY --from=builder /app /app
