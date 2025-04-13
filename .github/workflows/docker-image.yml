@@ -3,7 +3,8 @@ name: Build and Push Image to Docker Hub
 on:
   push:
     branches:
-      - 'main'
+      - 'main'             # Auto-run only on main
+  workflow_dispatch:       # Allow manual run on any branch or PR
 
 jobs:
   docker:
