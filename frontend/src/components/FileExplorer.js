@@ -40,8 +40,17 @@ function FileExplorer() {
           })
           .then(() => {
             setFileTree(prevTree => {
-              // Update file tree logic here
-              return prevTree;
+              const updateTree = (tree) => {
+                return tree.map(node => {
+                  if (node.path === filePath) {
+                    return { ...node, name: newName, path: newPath };
+                  } else if (node.children) {
+                    return { ...node, children: updateTree(node.children) };
+                  }
+                  return node;
+                });
+              };
+              return updateTree(prevTree);
             });
           })
           .catch(err => alert("Error renaming item: " + err.message));
