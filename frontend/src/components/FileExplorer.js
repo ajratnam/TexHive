@@ -64,8 +64,16 @@ function FileExplorer() {
           })
           .then(() => {
             setFileTree(prevTree => {
-              // Update file tree logic here
-              return prevTree;
+              const removeFileFromTree = (tree, filePath) => {
+                return tree
+                  .filter(item => item.path !== filePath) // Remove the target file/folder
+                  .map(item => 
+                    item.isDirectory && item.children 
+                      ? { ...item, children: removeFileFromTree(item.children, filePath) } 
+                      : item
+                  );
+              };
+              return removeFileFromTree(prevTree, filePath);
             });
           })
           .catch(err => alert("Error deleting item: " + err.message));
