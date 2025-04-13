@@ -1,7 +1,7 @@
 import re
 import requests
 import textwrap
-from core.utils.ast_helpers import get_language, search_for_source
+from ast_helpers import get_language, search_for_source
 
 
 def ensure_minted_package(content):

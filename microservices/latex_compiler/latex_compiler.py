@@ -1,9 +1,9 @@
 import os
 import subprocess
 import shutil
-from core.config import Config
-from core.utils.file_manager import read_file, write_file
-from core.utils.github_processor import process_github_commands
+import requests
+from config import Config
+from file_manager import read_file, write_file
 
 
 def compile_latex_file(tex_file, ignore_warnings=False):
@@ -13,11 +13,13 @@ def compile_latex_file(tex_file, ignore_warnings=False):
     shutil.copytree(Config.DATA_DIR, Config.TEMP_DIR, dirs_exist_ok=True)
 
     abs_tex_file = os.path.join(Config.TEMP_DIR, tex_file)
+    print(f"Absolute path of the file: {abs_tex_file}, {Config.DATA_DIR}, {Config.TEMP_DIR}")
     if not os.path.exists(abs_tex_file):
         return {'status': 'error', 'logs': 'Main file not found.'}
 
     content = read_file(abs_tex_file)
-    processed_content = process_github_commands(content)
+    print(f"Content of the file: {content}")
+    processed_content = requests.post("http://ref-service:8001/code_ref", json={"content": content}).json()
     write_file(abs_tex_file, processed_content)
 
     workdir = os.path.dirname(abs_tex_file)

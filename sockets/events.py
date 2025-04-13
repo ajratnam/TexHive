@@ -1,7 +1,7 @@
 import os
 from core.config import Config
 from core.utils.file_manager import write_file
-from core.utils.latex_compiler import compile_latex_file
+import requests
 from flask_socketio import emit
 
 
@@ -24,5 +24,5 @@ def register_socket_events(socketio, app):
             emit('compilation_done', {'status': 'error', 'logs': 'No valid .tex file provided.'}, broadcast=True)
             return
 
-        result = compile_latex_file(tex_file, ignore_warnings=ignore_warnings)
+        result = requests.post("http://compile-service:8002/compile", json={"tex_file":  tex_file, "ignore_warnings": ignore_warnings}).json()
         emit('compilation_done', result, broadcast=True)
