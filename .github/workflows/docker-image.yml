@@ -33,11 +33,29 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push texhive
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/texhive:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
+
+      - name: Build and push Reference Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./microservices/code_ref
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/ref-service:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
+
+      - name: Build and push Latex Compiler Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./microservices/compile-service
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/compile-service:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache,mode=max

@@ -1,5 +1,6 @@
 services:
   texhive:
+    image: ajratnam/texhive:latest
     build:
       context: .
     ports:
@@ -13,6 +14,7 @@ services:
       - texhive-net
 
   ref-service:
+    image: ajratnam/ref-service:latest
     build:
       context: ./microservices/code_ref
     ports:
@@ -21,6 +23,7 @@ services:
       - texhive-net
 
   compile-service:
+    image: ajratnam/compile-service:latest
     build:
       context: ./microservices/latex_compiler
     ports:
