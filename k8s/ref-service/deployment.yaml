@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ref-service
+  namespace: texhive
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ref-service
+  template:
+    metadata:
+      labels:
+        app: ref-service
+    spec:
+      containers:
+        - name: ref-service
+          image: ajratnam/ref-service:latest
+          ports:
+            - containerPort: 8001
