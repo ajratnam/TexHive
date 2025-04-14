@@ -54,7 +54,7 @@ jobs:
       - name: Build and push Latex Compiler Service
         uses: docker/build-push-action@v5
         with:
-          context: ./microservices/compile-service
+          context: ./microservices/latex_compiler
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/compile-service:latest
           cache-from: type=local,src=/tmp/.buildx-cache
