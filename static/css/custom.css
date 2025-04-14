@@ -97,3 +97,16 @@
 .hidden {
   display: none;
 }
+.viewerContainer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: auto;
+}
+
+.pdfViewer {
+  /* PDF.js applies its own styling; you can add custom styling if needed */
+  width: 100%;
+}

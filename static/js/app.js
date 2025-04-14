@@ -5,6 +5,7 @@ let compileTimeout;
 let realtimeEnabled = false;
 let currentFile = ""; // currently open file
 let contextMenuTarget = null;
+const ZOOM_STEP = 1.1;
 
 // Toggle the file explorer sidebar
 function toggleSidebar() {
@@ -312,23 +313,80 @@ function compileLatex() {
   socket.emit('compile_latex', { ignoreWarnings: ignoreWarnings, path: currentFile });
 }
 
-// Handle compilation results
+// Handle compilation results and render PDF interactively using PDF.js's PDFViewer
 socket.on('compilation_done', function (data) {
   const pdfContainer = document.getElementById('pdf-container');
   const pdfLoading = document.getElementById('pdf-loading');
+
   if (data.status === 'success') {
     const pdfFileName = currentFile.replace(/\.tex$/, '.pdf');
-    let iframe = document.getElementById('pdf-viewer');
-    if (!iframe) {
-      pdfContainer.innerHTML = `<iframe id="pdf-viewer" src="/pdf?file=${encodeURIComponent(pdfFileName)}#toolbar=0" style="width: 100%; height: 100%; border: none;"></iframe>`;
-      pdfContainer.appendChild(pdfLoading);
-    } else {
-      iframe.src = '/pdf?file=' + encodeURIComponent(pdfFileName) + '&ts=' + new Date().getTime() + '#toolbar=0';
-    }
-    iframe = document.getElementById('pdf-viewer');
-    iframe.onload = function() {
-      document.getElementById('pdf-loading').style.display = "none";
-    };
+    const pdfUrl = '/pdf?file=' + encodeURIComponent(pdfFileName);
+
+    // Create a viewer container with a nested "pdfViewer" element.
+    // The outer container is used by the PDFViewer as its "container" option,
+    // and the inner element is passed as the "viewer" option.
+    pdfContainer.innerHTML = `
+      <div id="viewerContainer" class="viewerContainer">
+        <div id="pdfViewer" class="pdfViewer"></div>
+      </div>
+    `;
+
+    var containerElement = document.getElementById('viewerContainer');
+    var viewerElement = document.getElementById('pdfViewer');
+
+    // Create an EventBus and a LinkService (required by PDFViewer)
+    var eventBus = new pdfjsViewer.EventBus();
+    var pdfLinkService = new pdfjsViewer.PDFLinkService({
+      eventBus: eventBus
+    });
+
+    // Create a PDFViewer instance with both container and viewer options
+    var pdfViewer = new pdfjsViewer.PDFViewer({
+      container: containerElement,
+      viewer: viewerElement,
+      eventBus: eventBus,
+      linkService: pdfLinkService
+    });
+    pdfLinkService.setViewer(pdfViewer);
+
+    // Load and render the PDF document
+    pdfjsLib.getDocument(pdfUrl).promise.then(function(pdfDocument) {
+      pdfViewer.setDocument(pdfDocument);
+      pdfLinkService.setDocument(pdfDocument, null);
+      pdfLoading.style.display = "none";
+    }).catch(function(err) {
+      console.error("Error rendering PDF: ", err);
+      pdfContainer.innerHTML = '<div style="padding:20px; color:red;">Error loading PDF</div>';
+      pdfLoading.style.display = "none";
+    });
+
+    let pdfScale = pdfViewer.currentScale || 1;
+    containerElement.addEventListener("wheel", function (event) {
+      if (event.ctrlKey) {
+        event.preventDefault();
+
+        const oldScale = pdfScale;
+        pdfScale *= event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+        pdfScale = Math.min(Math.max(pdfScale, 0.25), 5);
+
+        const rect = containerElement.getBoundingClientRect();
+        const scrollLeft = containerElement.scrollLeft;
+        const scrollTop = containerElement.scrollTop;
+
+        // Mouse position relative to container scroll
+        const x = event.clientX - rect.left + scrollLeft;
+        const y = event.clientY - rect.top + scrollTop;
+
+        // Apply zoom
+        pdfViewer.currentScale = pdfScale;
+
+        // Adjust scroll to keep mouse position in place
+        const scaleRatio = pdfScale / oldScale;
+        containerElement.scrollLeft = x * scaleRatio - (event.clientX - rect.left);
+        containerElement.scrollTop = y * scaleRatio - (event.clientY - rect.top);
+      }
+    }, { passive: false });
+
   } else {
     pdfContainer.innerHTML = `
       <div style="
@@ -345,7 +403,7 @@ socket.on('compilation_done', function (data) {
         <pre style="white-space: pre-wrap;">${data.logs}</pre>
       </div>
     `;
-    document.getElementById('pdf-loading').style.display = "none";
+    pdfLoading.style.display = "none";
   }
 });
 

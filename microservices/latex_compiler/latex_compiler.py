@@ -22,16 +22,13 @@ def compile_latex_file(tex_file, ignore_warnings=False):
     shutil.copytree(Config.DATA_DIR, Config.TEMP_DIR, dirs_exist_ok=True)
 
     abs_tex_file = os.path.join(Config.TEMP_DIR, tex_file)
-    # print(f"Absolute path of the file: {abs_tex_file}, {Config.DATA_DIR}, {Config.TEMP_DIR}")
     if not os.path.exists(abs_tex_file):
         return {'status': 'error', 'logs': 'Main file not found.'}
 
     content = read_file(abs_tex_file)
-    # print(f"Content of the file: {content}")
     pattern = r'\\Github\{([^}]*)\}'
-    # If pattern is there then only call the service
+
     if re.search(pattern, content):
-        # print(f"Pattern found in the file: {content}")
         try:
             processed_content = requests.post("http://ref-service:8001/code_ref", json={"content": content}).json()
             write_file(abs_tex_file, processed_content)
