@@ -2,6 +2,7 @@ import os
 import subprocess
 import shutil
 import requests
+import re
 from config import Config
 from file_manager import read_file, write_file
 
@@ -27,9 +28,16 @@ def compile_latex_file(tex_file, ignore_warnings=False):
 
     content = read_file(abs_tex_file)
     # print(f"Content of the file: {content}")
-    processed_content = requests.post("http://ref-service:8001/code_ref", json={"content": content}).json()
-    write_file(abs_tex_file, processed_content)
-
+    pattern = r'\\Github\{([^}]*)\}'
+    # If pattern is there then only call the service
+    if re.search(pattern, content):
+        # print(f"Pattern found in the file: {content}")
+        try:
+            processed_content = requests.post("http://ref-service:8001/code_ref", json={"content": content}).json()
+            write_file(abs_tex_file, processed_content)
+        except Exception as e:
+            return {'status': 'error', 'logs': f'Error processing GitHub commands: {str(e)}'}
+        
     workdir = os.path.dirname(abs_tex_file)
     base_name = os.path.splitext(os.path.basename(tex_file))[0]
     bibliography = r"\bibliography" in content
