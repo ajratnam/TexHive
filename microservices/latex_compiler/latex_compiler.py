@@ -8,17 +8,25 @@ from file_manager import read_file, write_file
 
 def compile_latex_file(tex_file, ignore_warnings=False):
     if os.path.exists(Config.TEMP_DIR):
-        shutil.rmtree(Config.TEMP_DIR)
+        for filename in os.listdir(Config.TEMP_DIR):
+            file_path = os.path.join(Config.TEMP_DIR, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print(f"Failed to delete {file_path}. Reason: {e}")
     os.makedirs(Config.TEMP_DIR, exist_ok=True)
     shutil.copytree(Config.DATA_DIR, Config.TEMP_DIR, dirs_exist_ok=True)
 
     abs_tex_file = os.path.join(Config.TEMP_DIR, tex_file)
-    print(f"Absolute path of the file: {abs_tex_file}, {Config.DATA_DIR}, {Config.TEMP_DIR}")
+    # print(f"Absolute path of the file: {abs_tex_file}, {Config.DATA_DIR}, {Config.TEMP_DIR}")
     if not os.path.exists(abs_tex_file):
         return {'status': 'error', 'logs': 'Main file not found.'}
 
     content = read_file(abs_tex_file)
-    print(f"Content of the file: {content}")
+    # print(f"Content of the file: {content}")
     processed_content = requests.post("http://ref-service:8001/code_ref", json={"content": content}).json()
     write_file(abs_tex_file, processed_content)
 
