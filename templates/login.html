@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - TexHive</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+  <script src="https://www.gstatic.com/firebasejs/9.13.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.13.0/firebase-auth-compat.js"></script>
+  <script src="{{ url_for('static', filename='js/dist/firebaseui.js') }}"></script>
+  <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.css" />
+  <script src="{{ url_for('static', filename='js/firebase.js') }}"></script>
+</head>
+<body>
+  <div class="flex items-center justify-center h-screen">
+    <div class="bg-white bg-opacity-10 backdrop-filter backdrop-blur-lg p-8 rounded-lg shadow-lg w-full max-w-md">
+      <div class="text-center mb-6">
+        <img src="{{ url_for('static', filename='images/banner.png') }}" alt="TexHive Banner" class="mx-auto h-12 w-auto">
+        <h2 class="mt-6 text-3xl font-extrabold text-gray-900">Welcome to TexHive</h2>
+        <p class="mt-2 text-sm text-gray-600">Please sign in to continue</p>
+      </div>
+      <div id="firebaseui-auth-container"></div>
+    </div>
+  </div>
+</body>
+</html>

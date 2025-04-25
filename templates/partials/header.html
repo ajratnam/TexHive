@@ -41,5 +41,44 @@
       <option value="gruvbox">Gruvbox</option>
       <option value="cobalt">Cobalt</option>
     </select>
+    <!-- User profile icon -->
+    <div id="user-profile-icon" class="w-8 h-8 rounded-full bg-gray-300"></div>
+    <!-- Firebase UI container -->
+    <div id="firebaseui-auth-container"></div>
+    <!-- Login/Logout button -->
+    <button id="login-logout-btn" class="px-4 py-2 bg-blue-500 text-white rounded" onclick="handleAuth()">
+      Login
+    </button>
   </div>
 </header>
+
+<script>
+  firebase.auth().onAuthStateChanged(function(user) {
+    if (user) {
+      var profileIcon = document.getElementById('user-profile-icon');
+      profileIcon.style.backgroundImage = 'url(' + user.photoURL + ')';
+      profileIcon.style.backgroundSize = 'cover';
+    }
+  });
+
+  function handleAuth() {
+    var user = firebase.auth().currentUser;
+    if (user) {
+      firebase.auth().signOut().then(function() {
+        document.getElementById('login-logout-btn').textContent = 'Login';
+      }).catch(function(error) {
+        console.error('Sign Out Error', error);
+      });
+    } else {
+      ui.start('#firebaseui-auth-container', uiConfig);
+    }
+  }
+
+  firebase.auth().onAuthStateChanged(function(user) {
+    if (user) {
+      document.getElementById('login-logout-btn').textContent = 'Logout';
+    } else {
+      document.getElementById('login-logout-btn').textContent = 'Login';
+    }
+  });
+</script>
