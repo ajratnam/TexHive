@@ -4,3 +4,4 @@ temp/
 _minted-*/
 data/
 test/
+routes/credentials.json

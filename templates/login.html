@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - TexHive</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+  <script src="https://www.gstatic.com/firebasejs/9.13.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.13.0/firebase-auth-compat.js"></script>
+  <script src="{{ url_for('static', filename='js/dist/firebaseui.js') }}"></script>
+  <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.css" />
+  <script src="{{ url_for('static', filename='js/firebase.js') }}"></script>
+  <!-- Add Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #e0f7e9; /* Light green base color */
+      background-image: 
+        linear-gradient(90deg, rgba(0, 128, 0, 0.1) 1px, transparent 1px),
+        linear-gradient(rgba(0, 128, 0, 0.1) 1px, transparent 1px);
+      background-size: 20px 20px; /* Adjust grid size */
+      font-family: 'Poppins', sans-serif; /* Apply font globally */
+    }
+    .card {
+      background-color: rgba(255, 255, 255, 0.4); /* Slightly more opaque */
+      backdrop-filter: blur(15px); /* Blur effect */
+      -webkit-backdrop-filter: blur(15px); /* Safari support */
+      padding: 2rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.5); /* More visible border */
+      width: 100%;
+      max-width: 28rem;
+      margin: auto 10px;
+    }
+    .card h2 {
+      font-size: 1.875rem;
+      font-weight: 600;
+      color: #1f2937;
+    }
+    .card p {
+      font-size: 0.875rem;
+      color: #4b5563;
+    }
+  </style>
+</head>
+<body>
+  <div style="
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    height: 100vh;">
+    <div class="card">
+      <div style="text-align: center; margin-bottom: 1.5rem;">
+        <img src="{{ url_for('static', filename='images/banner.png') }}" alt="TexHive Banner" style="margin: 0 auto; height: 3rem; width: auto;">
+        <h2>Welcome to TexHive</h2>
+        <p>Please sign in to continue</p>
+      </div>
+      <div id="firebaseui-auth-container"></div>
+    </div>
+  </div>
+</body>
+</html>
