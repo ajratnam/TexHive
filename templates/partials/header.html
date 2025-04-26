@@ -42,43 +42,74 @@
       <option value="cobalt">Cobalt</option>
     </select>
     <!-- User profile icon -->
-    <div id="user-profile-icon" class="w-8 h-8 rounded-full bg-gray-300"></div>
-    <!-- Firebase UI container -->
-    <div id="firebaseui-auth-container"></div>
-    <!-- Login/Logout button -->
-    <button id="login-logout-btn" class="px-4 py-2 bg-blue-500 text-white rounded" onclick="handleAuth()">
-      Login
-    </button>
+    <div id="user-profile-container" class="relative">
+      <div id="user-profile-icon" class="w-8 h-8 rounded-full bg-gray-300 cursor-pointer"></div>
+      <div id="user-profile-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-lg p-4">
+        <p id="user-name" class="font-bold"></p>
+        <p id="user-email" class="text-sm text-gray-600"></p>
+        <button id="logout-btn" class="mt-4 px-4 py-2 bg-red-500 text-white rounded w-full" onclick="handleLogout()">
+          Logout
+        </button>
+      </div>
+    </div>
   </div>
 </header>
 
 <script>
-  firebase.auth().onAuthStateChanged(function(user) {
-    if (user) {
-      var profileIcon = document.getElementById('user-profile-icon');
-      profileIcon.style.backgroundImage = 'url(' + user.photoURL + ')';
-      profileIcon.style.backgroundSize = 'cover';
-    }
-  });
+  const profileIcon = document.getElementById('user-profile-icon');
+  const profileDropdown = document.getElementById('user-profile-dropdown');
+  const userName = document.getElementById('user-name');
+  const userEmail = document.getElementById('user-email');
 
-  function handleAuth() {
-    var user = firebase.auth().currentUser;
+  // Function to update profile UI
+  function updateProfile(user) {
     if (user) {
-      firebase.auth().signOut().then(function() {
-        document.getElementById('login-logout-btn').textContent = 'Login';
-      }).catch(function(error) {
-        console.error('Sign Out Error', error);
-      });
+      profileIcon.style.backgroundImage = `url(${user.photoURL || ''})`;
+      profileIcon.style.backgroundSize = 'cover';
+      userName.textContent = user.displayName || '';
+      userEmail.textContent = user.email || '';
     } else {
-      ui.start('#firebaseui-auth-container', uiConfig);
+      profileIcon.style.backgroundImage = '';
+      userName.textContent = '';
+      userEmail.textContent = '';
     }
   }
 
+  // Toggle dropdown
+  profileIcon.addEventListener('click', () => {
+    profileDropdown.classList.toggle('hidden');
+  });
+
+  // Try loading from sessionStorage first
+  try {
+    const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
+    if (sessionData) {
+      updateProfile(sessionData);
+    }
+  } catch (e) {
+    console.error('Session Storage Error:', e);
+  }
+
+  // Update based on Firebase Auth
   firebase.auth().onAuthStateChanged(function(user) {
     if (user) {
-      document.getElementById('login-logout-btn').textContent = 'Logout';
+      // Save user details into sessionStorage
+      const userDetails = {
+        displayName: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL
+      };
+      sessionStorage.setItem('userDetails', JSON.stringify(userDetails));
+
+      updateProfile(user);
     } else {
-      document.getElementById('login-logout-btn').textContent = 'Login';
+      sessionStorage.removeItem('userDetails');
+      updateProfile(null);
     }
   });
+
+  // Handle logout
+  function handleLogout() {
+    window.location.href = '/logout';
+  }
 </script>

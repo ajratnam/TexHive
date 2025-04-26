@@ -16,23 +16,31 @@
     signInOptions: [
       firebase.auth.GoogleAuthProvider.PROVIDER_ID
     ],
-    tosUrl: '/terms-of-service',
-    privacyPolicyUrl: '/privacy-policy'
+    signInFlow: 'popup'
   };
   var ui = new firebaseui.auth.AuthUI(firebase.auth());
   ui.start('#firebaseui-auth-container', uiConfig);
 
   firebase.auth().onAuthStateChanged(function(user) {
     if (user) {
+      console.log(`Signed in as ${user.displayName} (${user.email})`);
       user.getIdToken().then(function(token) {
-        document.cookie = `token=${token}; path=/; secure; httponly`;
-        document.getElementById('login-logout-btn').textContent = 'Logout';
+        document.cookie = `token=${token};" path=/; max-age=3600; secure; samesite=strict`;
+        const userDetails = {
+          uid: user.uid,
+          displayName: user.displayName,
+          email: user.email,
+          photoURL: user.photoURL
+        };
+        sessionStorage.setItem('userDetails', JSON.stringify(userDetails));
+        window.location.href = '/';
       }).catch(function(error) {
         console.error('Error retrieving ID token', error);
       });
     } else {
       document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;';
-      document.getElementById('login-logout-btn').textContent = 'Login';
+      console.log('User is signed out');
+      sessionStorage.removeItem('userDetails');
     }
   });
 

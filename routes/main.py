@@ -66,3 +66,20 @@ def is_authenticated():
         return jsonify({"authenticated": True}), 200
     except:
         return jsonify({"authenticated": False}), 401
+
+@bp.route('/logout')
+def logout():
+    response = redirect(url_for('main.login'))
+    try:
+        token = request.cookies.get('token')
+        if token:
+            # Revoke the refresh tokens for the user
+            decoded_token = auth.verify_id_token(token)
+            uid = decoded_token['uid']
+            auth.revoke_refresh_tokens(uid)
+            print(f"Refresh tokens revoked for user: {uid}")
+        # Clear the token cookie
+        response.delete_cookie('token')
+    except Exception as e:
+        print(f"Error revoking token: {e}")
+    return response
