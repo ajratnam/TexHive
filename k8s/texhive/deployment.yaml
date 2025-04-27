@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: texhive
+  namespace: texhive
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: texhive
+  template:
+    metadata:
+      labels:
+        app: texhive
+    spec:
+      containers:
+        - name: texhive
+          image: ajratnam/texhive:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: POETRY_VIRTUALENVS_IN_PROJECT
+              value: "true"
+          volumeMounts:
+            - name: data-volume
+              mountPath: /app/data
+            - name: temp-volume
+              mountPath: /app/temp
+      volumes:
+        - name: data-volume
+          hostPath:
+            path: /data
+            type: DirectoryOrCreate
+        - name: temp-volume
+          hostPath:
+            path: /temp
+            type: DirectoryOrCreate

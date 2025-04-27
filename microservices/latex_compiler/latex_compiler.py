@@ -1,14 +1,23 @@
 import os
 import subprocess
 import shutil
-from core.config import Config
-from core.utils.file_manager import read_file, write_file
-from core.utils.github_processor import process_github_commands
+import requests
+import re
+from config import Config
+from file_manager import read_file, write_file
 
 
 def compile_latex_file(tex_file, ignore_warnings=False):
     if os.path.exists(Config.TEMP_DIR):
-        shutil.rmtree(Config.TEMP_DIR)
+        for filename in os.listdir(Config.TEMP_DIR):
+            file_path = os.path.join(Config.TEMP_DIR, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print(f"Failed to delete {file_path}. Reason: {e}")
     os.makedirs(Config.TEMP_DIR, exist_ok=True)
     shutil.copytree(Config.DATA_DIR, Config.TEMP_DIR, dirs_exist_ok=True)
 
@@ -17,9 +26,15 @@ def compile_latex_file(tex_file, ignore_warnings=False):
         return {'status': 'error', 'logs': 'Main file not found.'}
 
     content = read_file(abs_tex_file)
-    processed_content = process_github_commands(content)
-    write_file(abs_tex_file, processed_content)
+    pattern = r'\\Github\{([^}]*)\}'
 
+    if re.search(pattern, content):
+        try:
+            processed_content = requests.post("http://ref-service:8001/code_ref", json={"content": content}).json()
+            write_file(abs_tex_file, processed_content)
+        except Exception as e:
+            return {'status': 'error', 'logs': f'Error processing GitHub commands: {str(e)}'}
+        
     workdir = os.path.dirname(abs_tex_file)
     base_name = os.path.splitext(os.path.basename(tex_file))[0]
     bibliography = r"\bibliography" in content

@@ -1,5 +1,6 @@
 services:
   texhive:
+    image: ajratnam/texhive:latest
     build:
       context: .
     ports:
@@ -8,3 +9,31 @@ services:
       - POETRY_VIRTUALENVS_IN_PROJECT=true
     volumes:
       - ./data:/app/data
+      - ./temp:/app/temp
+    networks:
+      - texhive-net
+
+  ref-service:
+    image: ajratnam/ref-service:latest
+    build:
+      context: ./microservices/code_ref
+    ports:
+      - "8001:8001"
+    networks:
+      - texhive-net
+
+  compile-service:
+    image: ajratnam/compile-service:latest
+    build:
+      context: ./microservices/latex_compiler
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./data:/app/data
+      - ./temp:/app/temp
+    networks:
+      - texhive-net
+
+networks:
+  texhive-net:
+    driver: bridge

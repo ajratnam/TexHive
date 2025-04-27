@@ -97,3 +97,91 @@
 .hidden {
   display: none;
 }
+.viewerContainer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: auto;
+}
+
+.pdfViewer {
+  /* PDF.js applies its own styling; you can add custom styling if needed */
+  width: 100%;
+}
+
+/* Glassmorphic card layout */
+.glassmorphic-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Login page styles */
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: var(--bg-color);
+}
+
+.login-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  text-align: center;
+  color: var(--text-color);
+}
+
+.login-card img {
+  max-width: 100px;
+  margin-bottom: 1rem;
+}
+
+.login-card h2 {
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+.login-card p {
+  margin-bottom: 2rem;
+  font-size: 1rem;
+}
+
+.login-card #firebaseui-auth-container {
+  width: 100%;
+}
+
+#user-profile-dropdown {
+  position: absolute;
+  top: 60px; /* adjust according to your navbar height */
+  right: 10px;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  z-index: 1000;
+  min-width: 150px;
+  padding: 10px;
+}
+
+#user-name {
+  color: black
+}
+
+nav {
+  position: relative;
+}
+
+.hidden {
+  display: none;
+}

@@ -1,0 +1,149 @@
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: texhive
+---
+# Texhive Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: texhive
+  namespace: texhive
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: texhive
+  template:
+    metadata:
+      labels:
+        app: texhive
+    spec:
+      containers:
+        - name: texhive
+          image: ajratnam/texhive:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: POETRY_VIRTUALENVS_IN_PROJECT
+              value: "true"
+          volumeMounts:
+            - name: data-volume
+              mountPath: /app/data
+            - name: temp-volume
+              mountPath: /app/temp
+      volumes:
+        - name: data-volume
+          hostPath:
+            path: /data
+            type: DirectoryOrCreate
+        - name: temp-volume
+          hostPath:
+            path: /temp
+            type: DirectoryOrCreate
+---
+# Texhive Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: texhive-service
+  namespace: texhive
+spec:
+  selector:
+    app: texhive
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+      nodePort: 30000
+  type: NodePort
+---
+# Ref Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ref-service
+  namespace: texhive
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ref-service
+  template:
+    metadata:
+      labels:
+        app: ref-service
+    spec:
+      containers:
+        - name: ref-service
+          image: ajratnam/ref-service:latest
+          ports:
+            - containerPort: 8001
+---
+# Ref Service Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: ref-service
+  namespace: texhive
+spec:
+  selector:
+    app: ref-service
+  ports:
+    - protocol: TCP
+      port: 8001
+      targetPort: 8001
+  type: ClusterIP
+---
+# Compile Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compile-service
+  namespace: texhive
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: compile-service
+  template:
+    metadata:
+      labels:
+        app: compile-service
+    spec:
+      containers:
+        - name: compile-service
+          image: ajratnam/compile-service:latest
+          ports:
+            - containerPort: 8002
+          volumeMounts:
+            - name: data-volume
+              mountPath: /app/data
+            - name: temp-volume
+              mountPath: /app/temp
+      volumes:
+        - name: data-volume
+          hostPath:
+            path: /data
+            type: DirectoryOrCreate
+        - name: temp-volume
+          hostPath:
+            path: /temp
+            type: DirectoryOrCreate
+---
+# Compile Service Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: compile-service
+  namespace: texhive
+spec:
+  selector:
+    app: compile-service
+  ports:
+    - protocol: TCP
+      port: 8002
+      targetPort: 8002
+  type: ClusterIP
