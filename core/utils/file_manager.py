@@ -3,16 +3,16 @@ import shutil
 from core.config import Config
 
 
-def get_file_tree(directory):
+def get_file_tree(directory, uid):
     tree = []
     for entry in os.scandir(directory):
-        rel_path = os.path.relpath(entry.path, Config.DATA_DIR)
+        rel_path = os.path.relpath(entry.path, Config.DATA_DIR / uid)
         if entry.is_dir():
             tree.append({
                 'name': entry.name,
                 'path': rel_path,
                 'isDirectory': True,
-                'children': get_file_tree(entry.path)
+                'children': get_file_tree(entry.path, uid)
             })
         else:
             tree.append({

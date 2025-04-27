@@ -10,4 +10,5 @@ async def code_ref(request: Request):
         return {"error": "Missing content in request"}
     tex = str(tex_file['tex_file'])
     warning = tex_file.get('ignore_warnings', False)
-    return compile_latex_file(tex, warning)
+    uid = tex_file.get('uid', "")
+    return compile_latex_file(uid, tex, warning)

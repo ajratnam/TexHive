@@ -7,10 +7,12 @@ from config import Config
 from file_manager import read_file, write_file
 
 
-def compile_latex_file(tex_file, ignore_warnings=False):
-    if os.path.exists(Config.TEMP_DIR):
-        for filename in os.listdir(Config.TEMP_DIR):
-            file_path = os.path.join(Config.TEMP_DIR, filename)
+def compile_latex_file(uid, tex_file, ignore_warnings=False):
+    TEMP_DIR = Config.TEMP_DIR / uid
+    DATA_DIR = Config.DATA_DIR / uid
+    if os.path.exists(TEMP_DIR):
+        for filename in os.listdir(TEMP_DIR):
+            file_path = os.path.join(TEMP_DIR, filename)
             try:
                 if os.path.isfile(file_path) or os.path.islink(file_path):
                     os.unlink(file_path)
@@ -18,10 +20,10 @@ def compile_latex_file(tex_file, ignore_warnings=False):
                     shutil.rmtree(file_path)
             except Exception as e:
                 print(f"Failed to delete {file_path}. Reason: {e}")
-    os.makedirs(Config.TEMP_DIR, exist_ok=True)
-    shutil.copytree(Config.DATA_DIR, Config.TEMP_DIR, dirs_exist_ok=True)
+    os.makedirs(TEMP_DIR, exist_ok=True)
+    shutil.copytree(DATA_DIR, TEMP_DIR, dirs_exist_ok=True)
 
-    abs_tex_file = os.path.join(Config.TEMP_DIR, tex_file)
+    abs_tex_file = os.path.join(TEMP_DIR, tex_file)
     if not os.path.exists(abs_tex_file):
         return {'status': 'error', 'logs': 'Main file not found.'}
 

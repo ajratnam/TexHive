@@ -235,6 +235,7 @@ function initializeEditorWithTexFile(treeData) {
   if (texFile) {
     currentFile = texFile;
     loadFile(currentFile);
+    compileLatex();
   } else {
     currentFile = "document.tex";
     const baseContent = '\\documentclass{article}\n\\begin{document}\nHello, LaTeX!\n\\end{document}';
@@ -249,6 +250,7 @@ function initializeEditorWithTexFile(treeData) {
     })
     .then(() => {
       fetchFileTree(() => loadFile(currentFile));
+      compileLatex();
     })
     .catch(err => alert("Error creating document.tex: " + err.message));
   }
@@ -267,10 +269,11 @@ function loadFile(path) {
       document.querySelectorAll('#file-explorer .selected').forEach(el => el.classList.remove('selected'));
       const target = document.querySelector(`#file-explorer li[data-path="${data.path}"]`);
       if (target) target.classList.add('selected');
-      updateCompileButtonVisibility();
-      compileLatex();
     })
-    .catch(err => alert("Could not load file: " + err.message));
+    .catch(err => alert("Could not load file: " + err.message))
+      .then(() => {
+        updateCompileButtonVisibility();
+      });
 }
 
 // Initialize Monaco editor
@@ -310,7 +313,13 @@ require(['vs/editor/editor.main'], function () {
 function compileLatex() {
   document.getElementById('pdf-loading').style.display = "flex";
   let ignoreWarnings = document.getElementById('ignore-warnings').checked;
-  socket.emit('compile_latex', { ignoreWarnings: ignoreWarnings, path: currentFile });
+  const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
+    if (!sessionData || !sessionData.uid) {
+        setTimeout(compileLatex, 500);
+        return;
+    }
+    const userId = sessionData.uid;
+  socket.emit('compile_latex', { ignoreWarnings: ignoreWarnings, path: currentFile, uid: userId });
 }
 
 // Handle compilation results and render PDF interactively using PDF.js's PDFViewer
@@ -326,6 +335,9 @@ socket.on('compilation_done', function (data) {
     // The outer container is used by the PDFViewer as its "container" option,
     // and the inner element is passed as the "viewer" option.
     pdfContainer.innerHTML = `
+      <div id="pdf-loading" class="hidden">
+        <div class="loader"></div>
+      </div>
       <div id="viewerContainer" class="viewerContainer">
         <div id="pdfViewer" class="pdfViewer"></div>
       </div>
@@ -356,7 +368,7 @@ socket.on('compilation_done', function (data) {
       pdfLoading.style.display = "none";
     }).catch(function(err) {
       console.error("Error rendering PDF: ", err);
-      pdfContainer.innerHTML = '<div style="padding:20px; color:red;">Error loading PDF</div>';
+      pdfContainer.innerHTML = '<div id="pdf-loading" class="hidden"><div class="loader"></div></div><div style="padding:20px; color:red;">Error loading PDF</div>';
       pdfLoading.style.display = "none";
     });
 
@@ -389,6 +401,9 @@ socket.on('compilation_done', function (data) {
 
   } else {
     pdfContainer.innerHTML = `
+      <div id="pdf-loading" class="hidden">
+        <div class="loader"></div>
+      </div>
       <div style="
           height: 100%;
           width: 100%;

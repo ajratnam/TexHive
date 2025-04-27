@@ -1,10 +1,11 @@
-import os
+from pathlib import Path
 
 
 class Config:
-    BASE_DIR = os.getcwd()
-    DATA_DIR = os.path.join(BASE_DIR, "data")
-    TEMP_DIR = os.path.join(BASE_DIR, "temp")
+    BASE_DIR = Path.cwd()
+    DATA_DIR = BASE_DIR / "data"
+    TEMP_DIR = BASE_DIR / "temp"
 
 
-os.makedirs(Config.DATA_DIR, exist_ok=True)
+Config.DATA_DIR.mkdir(exist_ok=True)
+Config.TEMP_DIR.mkdir(exist_ok=True)

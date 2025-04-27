@@ -10,6 +10,7 @@ bp = Blueprint('main', __name__)
 cred = credentials.Certificate(os.path.join(os.path.dirname(__file__), 'credentials.json'))
 firebase_admin.initialize_app(cred)
 
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -17,21 +18,23 @@ def login_required(f):
         if not token:
             return redirect(url_for('main.login'))
         try:
-            auth.verify_id_token(token)
+            uid = auth.verify_id_token(token)['uid']
         except:
             return redirect(url_for('main.login'))
-        return f(*args, **kwargs)
+        return f(*args, **kwargs, uid=uid)
     return decorated_function
 
 @bp.route('/')
 @login_required
-def index():
+def index(uid):
+    (Config.DATA_DIR / uid).mkdir(exist_ok=True)
     return render_template('index.html')
 
 @bp.route('/pdf')
-def serve_pdf():
+@login_required
+def serve_pdf(uid):
     pdf_file = request.args.get('file', 'document.pdf')
-    pdf_path = os.path.join(Config.TEMP_DIR, pdf_file)
+    pdf_path = os.path.join(Config.TEMP_DIR / uid, pdf_file)
     if not os.path.exists(pdf_path):
         return "No PDF available", 404
 
