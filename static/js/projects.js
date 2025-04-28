@@ -1,149 +1,230 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const projectListContainer = document.getElementById('project-list');
-  const newProjectBtn = document.getElementById('new-project-btn');
-  const loadingIndicator = document.getElementById('loading-indicator');
-  const emptyState = document.getElementById('empty-state');
+    const projectListContainer = document.getElementById('project-list');
+    const newProjectBtn = document.getElementById('new-project-btn');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const emptyState = document.getElementById('empty-state');
+    const contextMenu = document.getElementById('context-menu'); // Get the context menu element
+    let projectContextMenuTarget = null; // Variable to store the card that was right-clicked
 
-  // Add a class to body to help hide editor-specific header items via CSS
-  document.body.classList.add('on-projects-page');
+    // Add a class to body to help hide editor-specific header items via CSS
+    document.body.classList.add('on-projects-page');
 
-  // --- Function to fetch projects ---
-  async function fetchProjects() {
-    showLoading(true);
-    showEmptyState(false);
-    projectListContainer.innerHTML = ''; // Clear existing projects
+    // --- Context Menu Handling ---
 
-    try {
-      // Assume API returns top-level folders/projects for the logged-in user
-      // The backend needs to handle authentication to return user-specific projects
-      const response = await fetch('/api/files'); // Use your existing file list endpoint
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const fileTree = await response.json();
-
-      // Filter for top-level directories (these are our "projects")
-      const projects = fileTree.filter(item => item.isDirectory);
-
-      renderProjects(projects);
-
-    } catch (error) {
-      console.error("Error fetching projects:", error);
-      projectListContainer.innerHTML = `<p class="text-red-500 col-span-full">Error loading projects. Please try again later.</p>`; // Span across grid columns
-      showEmptyState(false); // Hide default empty state if there's an error
-    } finally {
-      showLoading(false);
-    }
-  }
-
-  // --- Function to render projects ---
-  function renderProjects(projects) {
-    projectListContainer.innerHTML = ''; // Clear previous content
-
-    if (!projects || projects.length === 0) {
-      showEmptyState(true);
-      return;
+    // Show the custom context menu
+    function showContextMenu(x, y) {
+        if (!contextMenu) return;
+        contextMenu.style.left = x + 'px';
+        contextMenu.style.top = y + 'px';
+        contextMenu.classList.remove('hidden');
     }
 
-    showEmptyState(false);
-    projects.forEach(project => {
-      const card = createProjectCard(project);
-      projectListContainer.appendChild(card);
-    });
-  }
+    // Hide the custom context menu
+    function hideContextMenu() {
+        if (!contextMenu) return;
+        contextMenu.classList.add('hidden');
+        projectContextMenuTarget = null; // Clear the target when hiding
+    }
 
-  // --- Function to create a single project card element ---
-  function createProjectCard(project) {
-    const card = document.createElement('div');
-    card.className = 'project-card';
-    card.dataset.projectName = project.name; // Store name for potential future use
-    card.dataset.projectPath = project.path; // Store path for navigation/API calls
-
-    // Basic card content
-    const nameElement = document.createElement('h3');
-    nameElement.className = 'text-xl font-semibold mb-2 truncate'; // Truncate long names
-    nameElement.textContent = project.name;
-    nameElement.title = project.name; // Show full name on hover if truncated
-
-    // Optional: Add last modified date if available from API
-    // const modifiedElement = document.createElement('p');
-    // modifiedElement.className = 'text-sm text-gray-400';
-    // modifiedElement.textContent = `Last modified: ${project.lastModified || 'N/A'}`;
-
-    card.appendChild(nameElement);
-    // card.appendChild(modifiedElement);
-
-    // --- Add click listener to navigate to editor ---
-    card.addEventListener('click', () => {
-      // Navigate to the main editor page.
-      // The editor's file explorer should show this project folder.
-      // Optionally, pass project info via query params if editor needs it
-      window.location.href = `/editor?project=${encodeURIComponent(project.path)}`; // Navigate to editor, file explorer will show root
+    // Hide context menu on clicking anywhere else on the page
+    document.addEventListener('click', (event) => {
+        // Only hide if the click is outside the context menu itself
+        if (contextMenu && !contextMenu.contains(event.target)) {
+           hideContextMenu();
+        }
     });
 
-    return card;
-  }
+    // Prevent default right-click menu on the context menu itself
+    if (contextMenu) {
+        contextMenu.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
 
-  // --- Function to handle new project creation ---
-  async function createNewProject() {
-    const projectName = prompt("Enter a name for the new project:");
 
-    if (projectName && projectName.trim() !== "") {
-      const cleanProjectName = projectName.trim();
-      showLoading(true); // Show loading while creating
+    // --- Function to fetch projects ---
+    async function fetchProjects() {
+        showLoading(true);
+        showEmptyState(false);
+        projectListContainer.innerHTML = ''; // Clear existing projects
 
-      try {
-        // Use the existing folder creation endpoint
-        const response = await fetch('/api/folder', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          // Assuming the API expects just the folder name at the root
-          body: JSON.stringify({ path: cleanProjectName }),
+        try {
+            const response = await fetch('/api/files'); // Fetch root level items
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const fileTree = await response.json();
+            const projects = fileTree.filter(item => item.isDirectory); // Filter for directories (projects)
+            renderProjects(projects);
+
+        } catch (error) {
+            console.error("Error fetching projects:", error);
+            projectListContainer.innerHTML = `<p class="text-red-500 col-span-full">Error loading projects. Please try again later.</p>`;
+            showEmptyState(false);
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // --- Function to render projects ---
+    function renderProjects(projects) {
+        projectListContainer.innerHTML = '';
+        if (!projects || projects.length === 0) {
+            showEmptyState(true);
+            return;
+        }
+        showEmptyState(false);
+        projects.forEach(project => {
+            const card = createProjectCard(project);
+            projectListContainer.appendChild(card);
+        });
+    }
+
+    // --- Function to create a single project card element ---
+    function createProjectCard(project) {
+        const card = document.createElement('div');
+        card.className = 'project-card';
+        card.dataset.projectName = project.name;
+        card.dataset.projectPath = project.path; // Crucial: Store the folder path
+
+        const nameElement = document.createElement('h3');
+        nameElement.className = 'text-xl font-semibold mb-2 truncate';
+        nameElement.textContent = project.name;
+        nameElement.title = project.name;
+        card.appendChild(nameElement);
+
+        // --- Click listener to navigate to editor ---
+        card.addEventListener('click', () => {
+            window.location.href = `/editor?project=${encodeURIComponent(project.path)}`;
         });
 
-        if (!response.ok) {
-           const errorData = await response.json().catch(() => ({})); // Try to get error details
-           throw new Error(`Failed to create project: ${errorData.error || response.statusText}`);
-        }
+        // --- Right-click listener for context menu ---
+        card.addEventListener('contextmenu', (event) => {
+            event.preventDefault(); // Prevent default browser menu
+            event.stopPropagation(); // Prevent triggering on parent elements
+            projectContextMenuTarget = card; // Set this card as the target
+            showContextMenu(event.pageX, event.pageY); // Show our custom menu
+        });
 
-        // Refresh the project list after successful creation
-        await fetchProjects();
-
-      } catch (error) {
-        console.error("Error creating project:", error);
-        alert(`Could not create project: ${error.message}`);
-        showLoading(false); // Hide loading on error
-      }
-      // Loading is hidden by fetchProjects on success
-    } else if (projectName !== null) { // Handle empty input vs Cancel
-        alert("Project name cannot be empty.");
+        return card;
     }
-  }
 
-  // --- Helper functions for UI states ---
-  function showLoading(isLoading) {
-    loadingIndicator.classList.toggle('hidden', !isLoading);
-    // Optionally disable button while loading
-    if (newProjectBtn) newProjectBtn.disabled = isLoading;
-  }
+    // --- Function to handle new project creation ---
+    async function createNewProject() {
+        const projectName = prompt("Enter a name for the new project:");
+        if (projectName && projectName.trim() !== "") {
+            const cleanProjectName = projectName.trim();
+            showLoading(true);
+            try {
+                const response = await fetch('/api/folder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: cleanProjectName }), // Create at root
+                });
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`Failed to create project: ${errorData.error || response.statusText}`);
+                }
+                await fetchProjects(); // Refresh list
+            } catch (error) {
+                console.error("Error creating project:", error);
+                alert(`Could not create project: ${error.message}`);
+                showLoading(false);
+            }
+        } else if (projectName !== null) {
+            alert("Project name cannot be empty.");
+        }
+    }
 
-  function showEmptyState(isEmpty) {
-    emptyState.classList.toggle('hidden', !isEmpty);
-  }
+    // --- Helper functions for UI states ---
+    function showLoading(isLoading) {
+        loadingIndicator.classList.toggle('hidden', !isLoading);
+        if (newProjectBtn) newProjectBtn.disabled = isLoading;
+    }
 
-  // --- Event Listeners ---
-  if (newProjectBtn) {
-    newProjectBtn.addEventListener('click', createNewProject);
-  }
+    function showEmptyState(isEmpty) {
+        emptyState.classList.toggle('hidden', !isEmpty);
+    }
 
-  // --- Initial Load ---
-  // Check if Firebase auth is ready before fetching, or rely on the check in projects.html
-  fetchProjects();
+    // --- Event Listeners ---
+    if (newProjectBtn) {
+        newProjectBtn.addEventListener('click', createNewProject);
+    }
 
-  // Cleanup the body class when navigating away (optional, depends on SPA behavior)
-  window.addEventListener('beforeunload', () => {
-    document.body.classList.remove('on-projects-page');
-  });
+    // --- Context Menu Action Handler ---
+    if (contextMenu) {
+        contextMenu.addEventListener('click', async (e) => {
+            const action = e.target.getAttribute('data-action');
+            if (!action || !projectContextMenuTarget) {
+                hideContextMenu(); // Hide if clicked outside an action item or no target
+                return;
+            }
+
+            const projectPath = projectContextMenuTarget.dataset.projectPath;
+            const currentName = projectContextMenuTarget.dataset.projectName; // Get name for prompts
+
+            hideContextMenu(); // Hide menu immediately after action selected
+
+            if (action === "rename") {
+                const newName = prompt(`Enter new name for project "${currentName}":`, currentName);
+
+                // Proceed only if a new name was entered and it's different
+                if (newName && newName.trim() !== "" && newName.trim() !== currentName) {
+                    const cleanNewName = newName.trim();
+                    showLoading(true); // Show loading indicator during API call
+                    try {
+                        const response = await fetch('/api/file/rename', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            // Assuming API takes old path (which is just the folder name for root projects)
+                            // and new path (which is just the new folder name)
+                            // Adjust if your API expects full paths differently
+                            body: JSON.stringify({ oldPath: projectPath, newPath: cleanNewName })
+                        });
+
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({}));
+                            throw new Error(`Rename failed: ${errorData.error || response.statusText}`);
+                        }
+                        await fetchProjects(); // Refresh project list on success
+                    } catch (err) {
+                        console.error("Error renaming project:", err);
+                        alert("Error renaming project: " + err.message);
+                        showLoading(false); // Hide loading on error
+                    }
+                } else if (newName && newName.trim() === currentName) {
+                    // No change, do nothing
+                } else if (newName !== null) { // User entered empty string
+                    alert("New project name cannot be empty.");
+                } // If newName is null, user cancelled prompt
+
+            } else if (action === "delete") {
+                if (confirm(`Are you sure you want to delete the project "${currentName}"?\nThis action cannot be undone.`)) {
+                    showLoading(true); // Show loading indicator
+                    try {
+                        const response = await fetch('/api/file?path=' + encodeURIComponent(projectPath), {
+                            method: 'DELETE'
+                        });
+
+                        if (!response.ok) {
+                           const errorData = await response.json().catch(() => ({}));
+                            throw new Error(`Deletion failed: ${errorData.error || response.statusText}`);
+                        }
+                        await fetchProjects(); // Refresh project list on success
+                    } catch (err) {
+                        console.error("Error deleting project:", err);
+                        alert("Error deleting project: " + err.message);
+                        showLoading(false); // Hide loading on error
+                    }
+                }
+            }
+        });
+    }
+
+
+    // --- Initial Load ---
+    fetchProjects();
+
+    // Cleanup the body class when navigating away
+    window.addEventListener('beforeunload', () => {
+        document.body.classList.remove('on-projects-page');
+    });
 });

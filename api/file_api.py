@@ -52,7 +52,7 @@ def api_post_file(uid, project):
 
 @bp.route('/file', methods=['DELETE'])
 @login_required
-@project_required
+@project_required(False)
 def api_delete_file(uid, project):
     path = request.args.get('path')
     if not path:
@@ -68,7 +68,7 @@ def api_delete_file(uid, project):
 
 @bp.route('/file/rename', methods=['POST'])
 @login_required
-@project_required
+@project_required(False)
 def api_rename_file(uid, project):
     data = request.get_json()
     if not data or 'oldPath' not in data or 'newPath' not in data:
