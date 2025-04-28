@@ -1,11 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>{% extends "base.html" %}
+  {% include 'partials/head.html' %}
+</head>
+<body class="h-screen">
+  <header class="flex items-center justify-between px-4 py-3 bg-header-color text-text-color">
+  <div class="flex items-center">
+    <a href="/">
+      <h1 class="text-2xl font-bold">TexHive</h1>
+    </a>
+  </div>
+  <div class="flex items-center space-x-4">
+    <select id="theme-selector">
+      <option value="dark">Dark</option>
+      <option value="light">Light</option>
+      <option value="solarized">Solarized</option>
+      <option value="dracula">Dracula</option>
+      <option value="monokai">Monokai</option>
+      <option value="nord">Nord</option>
+      <option value="gruvbox">Gruvbox</option>
+      <option value="cobalt">Cobalt</option>
+    </select>
+    <!-- User profile icon -->
+    <div id="user-profile-container" class="relative">
+      <div id="user-profile-icon" class="w-8 h-8 rounded-full bg-gray-300 cursor-pointer"></div>
+      <div id="user-profile-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-lg p-4">
+        <p id="user-name" class="font-bold"></p>
+        <p id="user-email" class="text-sm text-gray-600"></p>
+        <button id="logout-btn" class="mt-4 px-4 py-2 bg-red-500 text-white rounded w-full" onclick="handleLogout()">
+          Logout
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
 
-{% block content %}
-<div id="projects-container" class="container mx-auto p-8 text-text-color">
+<script>
+  const profileIcon = document.getElementById('user-profile-icon');
+  const profileDropdown = document.getElementById('user-profile-dropdown');
+  const userName = document.getElementById('user-name');
+  const userEmail = document.getElementById('user-email');
+
+  // Function to update profile UI
+  function updateProfile(user) {
+    if (user) {
+      profileIcon.style.backgroundImage = `url(${user.photoURL || ''})`;
+      profileIcon.style.backgroundSize = 'cover';
+      userName.textContent = user.displayName || '';
+      userEmail.textContent = user.email || '';
+    } else {
+      profileIcon.style.backgroundImage = '';
+      userName.textContent = '';
+      userEmail.textContent = '';
+    }
+  }
+
+  // Toggle dropdown
+  profileIcon.addEventListener('click', () => {
+    profileDropdown.classList.toggle('hidden');
+  });
+
+  // Try loading from sessionStorage first
+  try {
+    const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
+    if (sessionData) {
+      updateProfile(sessionData);
+    }
+  } catch (e) {
+    console.error('Session Storage Error:', e);
+  }
+
+  // Update based on Firebase Auth
+  firebase.auth().onAuthStateChanged(function(user) {
+    if (user) {
+      // Save user details into sessionStorage
+      const userDetails = {
+        uid: user.uid,
+        displayName: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL
+      };
+      sessionStorage.setItem('userDetails', JSON.stringify(userDetails));
+
+      updateProfile(user);
+    } else {
+      sessionStorage.removeItem('userDetails');
+      updateProfile(null);
+    }
+  });
+
+  // Handle logout
+  function handleLogout() {
+    window.location.href = '/logout';
+  }
+</script>
+  <div id="main-container" class="flex h-[calc(100vh-64px)]">
+    <div id="projects-container" class="container mx-auto p-8 text-text-color">
   <div class="flex justify-between items-center mb-6">
     <h2 class="text-3xl font-bold">My Projects</h2>
     <button id="new-project-btn" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded shadow transition duration-150 ease-in-out">
@@ -37,9 +127,10 @@
     -->
   </div>
 </div>
-{% endblock %}
+  </div>
 
-{% block scripts %}
+  {% include 'partials/context_menu.html' %}
+
   <!-- Include Firebase setup if not already globally available via base.html -->
   <script src="{{ url_for('static', filename='js/firebase.js') }}"></script>
   <!-- Include the specific JS for this page -->
@@ -55,9 +146,5 @@
       }
     });
   </script>
-{% endblock %}</title>
-</head>
-<body>
-
 </body>
 </html>
