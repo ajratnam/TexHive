@@ -11,7 +11,8 @@ def register_socket_events(socketio, app):
         file_path = data.get('path')
         if not file_path:
             return  # Optionally emit an error
-        abs_path = os.path.join(Config.DATA_DIR, file_path)
+        uid = data.get('uid') if data else None
+        abs_path = os.path.join(Config.DATA_DIR / uid, file_path)
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
         write_file(abs_path, data.get('content', ''))
         emit('update_text', data, broadcast=True, include_self=False)

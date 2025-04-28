@@ -297,14 +297,16 @@ require(['vs/editor/editor.main'], function () {
     minimap: {enabled: false},
     automaticLayout: false
   });
+  const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
+  const userId = sessionData.uid;
   editor.getModel().onDidChangeContent(() => {
-    socket.emit('update_text', { content: editor.getValue(), path: currentFile });
+    socket.emit('update_text', { content: editor.getValue(), path: currentFile, uid: userId });
     if (realtimeEnabled) {
       clearTimeout(compileTimeout);
       compileTimeout = setTimeout(compileLatex, 1000);
     }
   });
-  socket.emit('update_text', { content: editor.getValue(), path: currentFile });
+  socket.emit('update_text', { content: editor.getValue(), path: currentFile, uid: userId });
   updateEditorTheme(window.initialMonacoTheme);
   fetchFileTree(initializeEditorWithTexFile);
 });
@@ -314,11 +316,7 @@ function compileLatex() {
   document.getElementById('pdf-loading').style.display = "flex";
   let ignoreWarnings = document.getElementById('ignore-warnings').checked;
   const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
-    if (!sessionData || !sessionData.uid) {
-        setTimeout(compileLatex, 500);
-        return;
-    }
-    const userId = sessionData.uid;
+  const userId = sessionData.uid;
   socket.emit('compile_latex', { ignoreWarnings: ignoreWarnings, path: currentFile, uid: userId });
 }
 

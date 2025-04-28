@@ -28,7 +28,7 @@ def login_required(f):
 @login_required
 def index(uid):
     (Config.DATA_DIR / uid).mkdir(exist_ok=True)
-    return render_template('index.html')
+    return render_template('editor.html')
 
 @bp.route('/pdf')
 @login_required
