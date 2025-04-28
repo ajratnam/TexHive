@@ -7,9 +7,9 @@ from config import Config
 from file_manager import read_file, write_file
 
 
-def compile_latex_file(uid, tex_file, ignore_warnings=False):
-    TEMP_DIR = Config.TEMP_DIR / uid
-    DATA_DIR = Config.DATA_DIR / uid
+def compile_latex_file(uid, project, tex_file, ignore_warnings=False):
+    TEMP_DIR = Config.TEMP_DIR / uid / project
+    DATA_DIR = Config.DATA_DIR / uid / project
     if os.path.exists(TEMP_DIR):
         for filename in os.listdir(TEMP_DIR):
             file_path = os.path.join(TEMP_DIR, filename)

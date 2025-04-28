@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% extends "base.html" %}
+
+{% block content %}
+<div id="projects-container" class="container mx-auto p-8 text-text-color">
+  <div class="flex justify-between items-center mb-6">
+    <h2 class="text-3xl font-bold">My Projects</h2>
+    <button id="new-project-btn" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded shadow transition duration-150 ease-in-out">
+      New Project
+    </button>
+  </div>
+
+  <!-- Loading Indicator -->
+  <div id="loading-indicator" class="text-center py-10 hidden">
+    <div class="loader inline-block"></div>
+    <p class="mt-2">Loading projects...</p>
+  </div>
+
+  <!-- Empty State -->
+  <div id="empty-state" class="text-center py-10 hidden">
+    <p class="text-xl text-gray-500">You don't have any projects yet.</p>
+    <p class="mt-2">Click "New Project" to get started!</p>
+  </div>
+
+  <!-- Project Grid -->
+  <div id="project-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+    <!-- Project cards will be dynamically inserted here -->
+    <!-- Example Project Card Structure (for reference) -->
+    <!--
+    <div class="project-card" data-project-name="MyFirstProject">
+      <h3 class="text-xl font-semibold mb-2">MyFirstProject</h3>
+      <p class="text-sm text-gray-400">Last modified: [Date]</p>
+    </div>
+    -->
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <!-- Include Firebase setup if not already globally available via base.html -->
+  <script src="{{ url_for('static', filename='js/firebase.js') }}"></script>
+  <!-- Include the specific JS for this page -->
+  <script src="{{ url_for('static', filename='js/projects.js') }}"></script>
+  <script>
+    // Basic auth check for the projects page
+    firebase.auth().onAuthStateChanged(function(user) {
+      if (!user) {
+        window.location.href = "/login"; // Redirect to login if not authenticated
+      } else {
+        // User is logged in, proceed to load projects (handled in projects.js)
+        console.log("User authenticated for projects page.");
+      }
+    });
+  </script>
+{% endblock %}</title>
+</head>
+<body>
+
+</body>
+</html>

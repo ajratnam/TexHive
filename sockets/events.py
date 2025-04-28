@@ -12,7 +12,8 @@ def register_socket_events(socketio, app):
         if not file_path:
             return  # Optionally emit an error
         uid = data.get('uid') if data else None
-        abs_path = os.path.join(Config.DATA_DIR / uid, file_path)
+        project = data.get('project') if data else None
+        abs_path = os.path.join(Config.DATA_DIR / uid / project, file_path)
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
         write_file(abs_path, data.get('content', ''))
         emit('update_text', data, broadcast=True, include_self=False)
@@ -22,9 +23,10 @@ def register_socket_events(socketio, app):
         ignore_warnings = data.get('ignoreWarnings', False) if data else False
         tex_file = data.get('path') if data else None
         uid = data.get('uid') if data else None
+        project = data.get('project') if data else None
         if not tex_file or not tex_file.endswith('.tex'):
             emit('compilation_done', {'status': 'error', 'logs': 'No valid .tex file provided.'}, broadcast=True)
             return
 
-        result = requests.post("http://compile-service:8002/compile", json={"tex_file":  tex_file, "ignore_warnings": ignore_warnings, 'uid': uid}).json()
+        result = requests.post("http://compile-service:8002/compile", json={"tex_file":  tex_file, "ignore_warnings": ignore_warnings, 'uid': uid, 'project': project}).json()
         emit('compilation_done', result, broadcast=True)

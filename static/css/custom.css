@@ -185,3 +185,70 @@ nav {
 .hidden {
   display: none;
 }
+
+/* --- Additions for Project Selection Page --- */
+
+#projects-container {
+  /* Optional: Add max-width or other container styling if needed */
+  /* background-color: var(--bg-color); Apply if not handled by body/parent */
+}
+
+#project-list {
+  /* Using Tailwind grid, but you can add custom styles here if needed */
+}
+
+.project-card {
+  background-color: var(--header-color); /* Use a theme variable */
+  color: var(--text-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid var(--gutter-color);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  cursor: pointer;
+  overflow: hidden; /* Ensure content fits */
+  word-wrap: break-word; /* Break long project names */
+}
+
+.project-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+}
+
+.project-card h3 {
+  color: var(--text-color); /* Ensure heading color contrasts */
+}
+
+.project-card p {
+  color: var(--text-color-secondary); /* A secondary text color if defined in theme */
+  opacity: 0.8; /* Fallback if secondary color not set */
+}
+
+/* Ensure loading indicator uses theme colors if needed */
+#loading-indicator p {
+  color: var(--text-color);
+}
+#loading-indicator .loader {
+   border-top-color: var(--text-color); /* Make spinner visible */
+   border-left-color: var(--text-color-secondary);
+   border-right-color: var(--text-color-secondary);
+   border-bottom-color: var(--text-color-secondary);
+}
+
+
+#empty-state p {
+  color: var(--text-color);
+  opacity: 0.7;
+}
+
+/* Hide Editor specific controls in header when on project page */
+body.on-projects-page #compile-btn,
+body.on-projects-page #realtime-toggle + label, /* Hide toggle and its label */
+body.on-projects-page #ignore-warnings + label { /* Hide toggle and its label */
+  display: none;
+}
+
+/* Optional: Style the New Project button further if needed */
+#new-project-btn {
+  /* Example: Add subtle gradient or icon */
+}

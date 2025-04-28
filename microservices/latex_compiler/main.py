@@ -11,4 +11,5 @@ async def code_ref(request: Request):
     tex = str(tex_file['tex_file'])
     warning = tex_file.get('ignore_warnings', False)
     uid = tex_file.get('uid', "")
-    return compile_latex_file(uid, tex, warning)
+    project = tex_file.get('project', "")
+    return compile_latex_file(uid, project, tex, warning)

@@ -299,14 +299,16 @@ require(['vs/editor/editor.main'], function () {
   });
   const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
   const userId = sessionData.uid;
+  const params = new URLSearchParams(window.location.search);
+  const project = params.get('project');
   editor.getModel().onDidChangeContent(() => {
-    socket.emit('update_text', { content: editor.getValue(), path: currentFile, uid: userId });
+    socket.emit('update_text', { content: editor.getValue(), path: currentFile, uid: userId, project: project });
     if (realtimeEnabled) {
       clearTimeout(compileTimeout);
       compileTimeout = setTimeout(compileLatex, 1000);
     }
   });
-  socket.emit('update_text', { content: editor.getValue(), path: currentFile, uid: userId });
+  socket.emit('update_text', { content: editor.getValue(), path: currentFile, uid: userId, project: project });
   updateEditorTheme(window.initialMonacoTheme);
   fetchFileTree(initializeEditorWithTexFile);
 });
@@ -317,7 +319,9 @@ function compileLatex() {
   let ignoreWarnings = document.getElementById('ignore-warnings').checked;
   const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
   const userId = sessionData.uid;
-  socket.emit('compile_latex', { ignoreWarnings: ignoreWarnings, path: currentFile, uid: userId });
+  const params = new URLSearchParams(window.location.search);
+  const project = params.get('project');
+  socket.emit('compile_latex', { ignoreWarnings: ignoreWarnings, path: currentFile, uid: userId, project: project });
 }
 
 // Handle compilation results and render PDF interactively using PDF.js's PDFViewer
