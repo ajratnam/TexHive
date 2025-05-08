@@ -1,5 +1,9 @@
 import os
 from urllib.parse import urlparse, parse_qs
+import secrets
+import shutil
+import json
+from datetime import datetime
 
 from flask import Blueprint, render_template, Response, request, redirect, url_for, jsonify
 from core.config import Config
@@ -12,6 +16,19 @@ bp = Blueprint('main', __name__)
 cred = credentials.Certificate(os.path.join(os.path.dirname(__file__), 'credentials.json'))
 firebase_admin.initialize_app(cred)
 
+def get_shared_data():
+    data_file = Config.DATA_DIR / 'shared' / 'data.json'
+    if not os.path.exists(data_file):
+        os.makedirs(data_file.parent, exist_ok=True)
+        with open(data_file, 'w') as f:
+            json.dump({}, f)
+    with open(data_file, 'r') as f:
+        return json.load(f)
+
+def save_shared_data(data):
+    data_file = Config.DATA_DIR / 'shared' / 'data.json'
+    with open(data_file, 'w') as f:
+        json.dump(data, f, indent=2, default=str)
 
 def login_required(f):
     @wraps(f)
@@ -135,3 +152,119 @@ def logout():
     except Exception as e:
         print(f"Error revoking token: {e}")
     return response
+
+
+@bp.route('/api/share-project', methods=['POST'])
+@login_required
+def share_project(uid):
+    data = request.get_json()
+    project_name = data.get('projectName')
+    project_path = data.get('projectPath')
+    
+    if not project_name or not project_path:
+        return jsonify({'error': 'Missing project information'}), 400
+    
+    source_dir = Config.DATA_DIR / uid / project_name
+    
+    # Check if project is already shared by checking if it's a symlink
+    if os.path.islink(source_dir):
+        # Get the target of the symlink
+        target = os.path.realpath(source_dir)
+        # Extract hash from the target path (last directory name)
+        existing_hash = os.path.basename(target)
+        # Verify this is a valid shared project
+        shared_data = get_shared_data()
+        if existing_hash in shared_data:
+            return jsonify({'shareHash': existing_hash})
+    
+    # If not already shared, proceed with sharing process
+    share_hash = secrets.token_urlsafe(16)
+    
+    # Get user information
+    try:
+        user = auth.get_user(uid)
+    except:
+        return jsonify({'error': 'Failed to get user information'}), 500
+    
+    # Add project information to data.json
+    shared_data = get_shared_data()
+    shared_data[share_hash] = {
+        'name': project_name,
+        'owner': {
+            'uid': uid,
+            'name': user.display_name,
+            'email': user.email
+        },
+        'collaborators': [],
+        'created': datetime.now(),
+        'collaboration_url_hash': share_hash
+    }
+    
+    # Move project files to shared directory
+    shared_dir = Config.DATA_DIR / 'shared' / share_hash
+    
+    try:
+        # Create shared directory if it doesn't exist
+        os.makedirs(shared_dir.parent, exist_ok=True)
+        # Copy project files to shared directory
+        shutil.copytree(source_dir, shared_dir)
+        # Remove the original directory after successful copy
+        shutil.rmtree(source_dir)
+        # Create a symbolic link from the original location to the shared directory
+        os.symlink(shared_dir, source_dir, target_is_directory=True)
+        # Save the updated shared data
+        save_shared_data(shared_data)
+    except Exception as e:
+        # Clean up if anything fails
+        if os.path.exists(shared_dir):
+            shutil.rmtree(shared_dir)
+        if os.path.exists(source_dir) and os.path.islink(source_dir):
+            os.unlink(source_dir)
+        return jsonify({'error': f'Failed to share project: {str(e)}'}), 500
+    
+    return jsonify({'shareHash': share_hash})
+
+
+@bp.route('/join-project/<share_hash>')
+@login_required
+def join_project(uid, share_hash):
+    # Get project information from data.json
+    shared_data = get_shared_data()
+    project_data = shared_data.get(share_hash)
+    
+    if not project_data:
+        return "Project not found", 404
+        
+    # Check if user is already a collaborator
+    if not any(collab['uid'] == uid for collab in project_data['collaborators']):
+        try:
+            user = auth.get_user(uid)
+            # Add user to collaborators
+            project_data['collaborators'].append({
+                'uid': uid,
+                'name': user.display_name,
+                'email': user.email
+            })
+            save_shared_data(shared_data)
+        except Exception as e:
+            return f"Failed to join project: {str(e)}", 500
+    
+    # Create symbolic link to shared project in user's directory
+    user_dir = Config.DATA_DIR / uid
+    project_link = user_dir / project_data['name']
+    shared_dir = Config.DATA_DIR / 'shared' / share_hash
+    
+    try:
+        os.makedirs(user_dir, exist_ok=True)
+        # Remove existing link if it exists
+        if os.path.exists(project_link):
+            if os.path.islink(project_link):
+                os.unlink(project_link)
+            else:
+                return "Project with same name already exists", 400
+        # Create symbolic link
+        os.symlink(shared_dir, project_link, target_is_directory=True)
+    except Exception as e:
+        return f"Failed to setup project: {str(e)}", 500
+    
+    return redirect(url_for('main.editor', project=project_data['name']))

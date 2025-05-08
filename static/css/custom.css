@@ -198,7 +198,7 @@ nav {
 }
 
 .project-card {
-  background-color: var(--header-color); /* Use a theme variable */
+  background-color: var(--header-color);
   color: var(--text-color);
   border-radius: 8px;
   padding: 1.5rem;
@@ -206,8 +206,8 @@ nav {
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   cursor: pointer;
-  overflow: hidden; /* Ensure content fits */
-  word-wrap: break-word; /* Break long project names */
+  overflow: hidden;
+  word-wrap: break-word;
 }
 
 .project-card:hover {
@@ -216,7 +216,15 @@ nav {
 }
 
 .project-card h3 {
-  color: var(--text-color); /* Ensure heading color contrasts */
+  color: var(--text-color);
+}
+
+.project-card button {
+  transition: all 0.2s ease-in-out;
+}
+
+.project-card button:hover {
+  transform: scale(1.05);
 }
 
 .project-card p {

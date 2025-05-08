@@ -83,25 +83,72 @@ document.addEventListener('DOMContentLoaded', () => {
         const card = document.createElement('div');
         card.className = 'project-card';
         card.dataset.projectName = project.name;
-        card.dataset.projectPath = project.path; // Crucial: Store the folder path
+        card.dataset.projectPath = project.path;
+
+        const cardContent = document.createElement('div');
+        cardContent.className = 'flex justify-between items-start';
+
+        const leftContent = document.createElement('div');
+        leftContent.className = 'flex-grow';
 
         const nameElement = document.createElement('h3');
         nameElement.className = 'text-xl font-semibold mb-2 truncate';
         nameElement.textContent = project.name;
         nameElement.title = project.name;
-        card.appendChild(nameElement);
+        leftContent.appendChild(nameElement);
 
-        // --- Click listener to navigate to editor ---
+        const shareButton = document.createElement('button');
+        shareButton.className = 'px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm';
+        shareButton.textContent = 'Share';
+        shareButton.onclick = async (e) => {
+            e.stopPropagation(); // Prevent navigation to editor
+            try {
+                const response = await fetch('/api/share-project', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        projectName: project.name,
+                        projectPath: project.path 
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to share project');
+                }
+                
+                const data = await response.json();
+                const shareUrl = window.location.origin + '/join-project/' + data.shareHash;
+                
+                // Create a temporary input to copy the URL
+                const tempInput = document.createElement('input');
+                tempInput.value = shareUrl;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+                
+                alert('Share link copied to clipboard: ' + shareUrl);
+            } catch (error) {
+                console.error('Error sharing project:', error);
+                alert('Failed to share project. Please try again.');
+            }
+        };
+
+        cardContent.appendChild(leftContent);
+        cardContent.appendChild(shareButton);
+        card.appendChild(cardContent);
+
+        // Click listener to navigate to editor
         card.addEventListener('click', () => {
             window.location.href = `/editor?project=${encodeURIComponent(project.path)}`;
         });
 
-        // --- Right-click listener for context menu ---
+        // Right-click listener for context menu
         card.addEventListener('contextmenu', (event) => {
-            event.preventDefault(); // Prevent default browser menu
-            event.stopPropagation(); // Prevent triggering on parent elements
-            projectContextMenuTarget = card; // Set this card as the target
-            showContextMenu(event.pageX, event.pageY); // Show our custom menu
+            event.preventDefault();
+            event.stopPropagation();
+            projectContextMenuTarget = card;
+            showContextMenu(event.pageX, event.pageY);
         });
 
         return card;
