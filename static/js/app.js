@@ -438,6 +438,39 @@ function toggleRealtime() {
   }
 }
 
+// Share project function
+async function shareProject() {
+  const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
+  const userId = sessionData.uid;
+  const params = new URLSearchParams(window.location.search);
+  const project = params.get('project');
+
+  try {
+    const response = await fetch('/api/share-project', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        projectName: project,
+        projectPath: project
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to share project');
+    }
+    
+    const data = await response.json();
+    const shareUrl = window.location.origin + '/join-project/' + data.shareHash;
+    
+    // Copy to clipboard
+    await navigator.clipboard.writeText(shareUrl);
+    alert('Share link copied to clipboard: ' + shareUrl);
+  } catch (error) {
+    console.error('Error sharing project:', error);
+    alert('Failed to share project. Please try again.');
+  }
+}
+
 // Initialize Split.js to divide the editor and PDF panes
 require(['split'], function (Split) {
   Split(['#editor-container', '#pdf-container'], {

@@ -251,6 +251,7 @@ nav {
 
 /* Hide Editor specific controls in header when on project page */
 body.on-projects-page #compile-btn,
+body.on-projects-page #share-btn,
 body.on-projects-page #realtime-toggle + label, /* Hide toggle and its label */
 body.on-projects-page #ignore-warnings + label { /* Hide toggle and its label */
   display: none;
