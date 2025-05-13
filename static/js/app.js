@@ -1,11 +1,27 @@
 // Initialize Socket.IO and editor variables
 var socket = io();
+
+// Join project room when connected
+const params = new URLSearchParams(window.location.search);
+const project = params.get('project');
+if (project) {
+    socket.emit('join_project', { projectName: project });
+}
+
+// Clean up when leaving the page
+window.addEventListener('beforeunload', function() {
+    if (project) {
+        socket.emit('leave_project', { projectName: project });
+    }
+});
+
 var editor;
 let compileTimeout;
 let realtimeEnabled = false;
 let currentFile = ""; // currently open file
 let contextMenuTarget = null;
 const ZOOM_STEP = 1.1;
+let userAccessLevel = null; // Store user's access level
 
 // Toggle the file explorer sidebar
 function toggleSidebar() {
@@ -139,12 +155,15 @@ function renderFileTree(tree, container) {
         const nestedUl = this.querySelector('ul');
         if (nestedUl) nestedUl.classList.toggle('hidden');
       });
-      li.addEventListener('contextmenu', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        contextMenuTarget = li;
-        showContextMenu(e.pageX, e.pageY);
-      });
+      // Only add context menu for editors and owners
+      if (userAccessLevel !== 'viewer') {
+        li.addEventListener('contextmenu', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          contextMenuTarget = li;
+          showContextMenu(e.pageX, e.pageY);
+        });
+      }
       if (item.children && item.children.length > 0) {
         const nestedUl = document.createElement('ul');
         renderFileTree(item.children, nestedUl);
@@ -159,12 +178,15 @@ function renderFileTree(tree, container) {
         li.classList.add('selected');
         loadFile(li.dataset.path);
       });
-      li.addEventListener('contextmenu', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        contextMenuTarget = li;
-        showContextMenu(e.pageX, e.pageY);
-      });
+      // Only add context menu for editors and owners
+      if (userAccessLevel !== 'viewer') {
+        li.addEventListener('contextmenu', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          contextMenuTarget = li;
+          showContextMenu(e.pageX, e.pageY);
+        });
+      }
     }
     ul.appendChild(li);
   });
@@ -265,52 +287,224 @@ function loadFile(path) {
     })
     .then(data => {
       currentFile = data.path;
-      if (editor) editor.setValue(data.content);
+      
+      if (userAccessLevel === 'viewer') {
+        // For viewers, just display the content in a read-only format
+        const editorContainer = document.getElementById('editor-container');
+        editorContainer.innerHTML = `
+          <div class="h-full bg-[#1e1e1e] text-white p-4 overflow-auto">
+            <div class="mb-4 pb-2 border-b border-gray-700">
+              <h2 class="text-lg font-semibold">${path}</h2>
+              <div class="flex items-center text-sm text-gray-400">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+                View-Only Access
+              </div>
+            </div>
+            <pre class="font-mono whitespace-pre-wrap">${data.content}</pre>
+          </div>
+        `;
+      } else if (editor) {
+        editor.setValue(data.content);
+      }
+      
       document.querySelectorAll('#file-explorer .selected').forEach(el => el.classList.remove('selected'));
       const target = document.querySelector(`#file-explorer li[data-path="${data.path}"]`);
       if (target) target.classList.add('selected');
     })
     .catch(err => alert("Could not load file: " + err.message))
-      .then(() => {
-        updateCompileButtonVisibility();
-      });
+    .then(() => {
+      updateCompileButtonVisibility();
+    });
+}
+
+// Function to check user's access level
+async function checkUserAccess() {
+    try {
+        const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
+        const currentUserId = sessionData.uid;
+        const params = new URLSearchParams(window.location.search);
+        const project = params.get('project');
+
+        // Get share hash
+        const shareResponse = await fetch('/api/share-project', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                projectName: project,
+                projectPath: project
+            })
+        });
+        
+        if (!shareResponse.ok) {
+            throw new Error('Failed to get project information');
+        }
+        
+        const { shareHash } = await shareResponse.json();
+        
+        // Get collaborators
+        const collabResponse = await fetch(`/api/project/collaborators?hash=${shareHash}`);
+        if (!collabResponse.ok) {
+            throw new Error('Failed to fetch collaborators');
+        }
+        
+        const data = await collabResponse.json();
+        
+        // Check if user is owner
+        if (data.owner.uid === currentUserId) {
+            userAccessLevel = 'owner';
+        } else {
+            // Check if user is a collaborator
+            const collaborator = data.collaborators.find(c => c.uid === currentUserId);
+            if (collaborator) {
+                userAccessLevel = collaborator.access_level;
+            } else {
+                userAccessLevel = null;
+            }
+        }
+
+        // Apply access restrictions
+        if (editor && userAccessLevel === 'viewer') {
+            // Set editor to read-only mode
+            editor.updateOptions({ 
+                readOnly: true,
+                domReadOnly: true,
+                cursorBlinking: 'solid'
+            });
+            
+            // Add visual indicator for read-only mode
+            const editorContainer = document.getElementById('editor-container');
+            const readOnlyIndicator = document.createElement('div');
+            readOnlyIndicator.className = 'absolute top-2 right-2 flex items-center bg-gray-800 text-gray-300 px-3 py-1 rounded-full text-sm';
+            readOnlyIndicator.innerHTML = `
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+                View Only
+            `;
+            editorContainer.appendChild(readOnlyIndicator);
+        }
+
+        // Hide/show buttons based on access level
+        if (userAccessLevel === 'viewer') {
+            // Hide buttons/features that viewers shouldn't access
+            document.getElementById('new-file-button')?.classList.add('hidden');
+            document.getElementById('new-folder-button')?.classList.add('hidden');
+            document.getElementById('share-btn')?.classList.add('hidden');
+            
+            // Disable realtime toggle
+            const realtimeToggle = document.getElementById('realtime-toggle');
+            if (realtimeToggle) {
+                realtimeToggle.disabled = true;
+                realtimeToggle.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+    } catch (error) {
+        console.error('Error checking user access:', error);
+    }
+}
+
+// Function to apply access restrictions based on user's role
+function applyAccessRestrictions() {
+    if (!editor) return;
+
+    if (userAccessLevel === 'viewer') {
+        // Disable editing
+        editor.updateOptions({ readOnly: true });
+        
+        // Hide buttons/features that viewers shouldn't access
+        document.getElementById('new-file-button')?.classList.add('hidden');
+        document.getElementById('new-folder-button')?.classList.add('hidden');
+        
+        // Disable context menu for files/folders
+        const fileExplorer = document.getElementById('file-explorer');
+        if (fileExplorer) {
+            fileExplorer.querySelectorAll('li').forEach(item => {
+                item.removeEventListener('contextmenu', showContextMenu);
+            });
+        }
+        
+        // Hide share button (viewers can't share)
+        document.getElementById('share-btn')?.classList.add('hidden');
+        
+        // Disable realtime toggle (viewers can't control realtime)
+        const realtimeToggle = document.getElementById('realtime-toggle');
+        if (realtimeToggle) {
+            realtimeToggle.disabled = true;
+            realtimeToggle.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+    } else {
+        // Enable all features for editors and owners
+        editor.updateOptions({ readOnly: false });
+        
+        // Show all buttons/features
+        document.getElementById('new-file-button')?.classList.remove('hidden');
+        document.getElementById('new-folder-button')?.classList.remove('hidden');
+        document.getElementById('share-btn')?.classList.remove('hidden');
+        
+        // Enable realtime toggle
+        const realtimeToggle = document.getElementById('realtime-toggle');
+        if (realtimeToggle) {
+            realtimeToggle.disabled = false;
+            realtimeToggle.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    }
 }
 
 // Initialize Monaco editor
 require(['vs/editor/editor.main'], function () {
-  monaco.languages.register({id: 'latex'});
-  monaco.languages.setMonarchTokensProvider('latex', {
-    tokenizer: {
-      root: [
-        [/%.*$/, "comment"],
-        [/\\[a-zA-Z]+/, "keyword"],
-        [/\\./, "keyword"],
-        [/\$[^$]*\$/, "string"],
-        [/[{}]/, "delimiter"],
-      ]
-    }
-  });
-  editor = monaco.editor.create(document.getElementById('editor-container'), {
-    value: '\\documentclass{article}\n\\begin{document}\nHello, LaTeX!\n\\end{document}',
-    language: 'latex',
-    theme: window.initialMonacoTheme,
-    minimap: {enabled: false},
-    automaticLayout: false
-  });
-  const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
-  const userId = sessionData.uid;
-  const params = new URLSearchParams(window.location.search);
-  const project = params.get('project');
-  editor.getModel().onDidChangeContent(() => {
-    socket.emit('update_text', { content: editor.getValue(), path: currentFile, uid: userId, project: project });
-    if (realtimeEnabled) {
-      clearTimeout(compileTimeout);
-      compileTimeout = setTimeout(compileLatex, 1000);
-    }
-  });
-  socket.emit('update_text', { content: editor.getValue(), path: currentFile, uid: userId, project: project });
-  updateEditorTheme(window.initialMonacoTheme);
-  fetchFileTree(initializeEditorWithTexFile);
+    monaco.languages.register({id: 'latex'});
+    monaco.languages.setMonarchTokensProvider('latex', {
+        tokenizer: {
+            root: [
+                [/%.*$/, "comment"],
+                [/\\[a-zA-Z]+/, "keyword"],
+                [/\\./, "keyword"],
+                [/\$[^$]*\$/, "string"],
+                [/[{}]/, "delimiter"],
+            ]
+        }
+    });
+
+    // Create editor with initial read-only state
+    editor = monaco.editor.create(document.getElementById('editor-container'), {
+        value: '\\documentclass{article}\n\\begin{document}\nHello, LaTeX!\n\\end{document}',
+        language: 'latex',
+        theme: window.initialMonacoTheme,
+        minimap: {enabled: false},
+        automaticLayout: false,
+        readOnly: true // Start as read-only until access is checked
+    });
+
+    // Check user access and set up editor accordingly
+    checkUserAccess().then(() => {
+        const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
+        const userId = sessionData.uid;
+        const params = new URLSearchParams(window.location.search);
+        const project = params.get('project');
+
+        if (userAccessLevel !== 'viewer') {
+            // Enable editing for non-viewers
+            editor.updateOptions({ readOnly: false });
+            
+            // Set up content change handlers
+            editor.getModel().onDidChangeContent(() => {
+                socket.emit('update_text', { content: editor.getValue(), path: currentFile, uid: userId, project: project });
+                if (realtimeEnabled) {
+                    clearTimeout(compileTimeout);
+                    compileTimeout = setTimeout(compileLatex, 1000);
+                }
+            });
+            socket.emit('update_text', { content: editor.getValue(), path: currentFile, uid: userId, project: project });
+        }
+
+        updateEditorTheme(window.initialMonacoTheme);
+        fetchFileTree(initializeEditorWithTexFile);
+    });
 });
 
 // Compile LaTeX and show the spinner overlay
@@ -470,6 +664,292 @@ async function shareProject() {
     alert('Failed to share project. Please try again.');
   }
 }
+
+// Function to close collaborators dialog
+function closeCollaboratorsDialog() {
+    const dialog = document.getElementById('collaborators-dialog');
+    if (dialog) {
+        dialog.close();
+    }
+}
+
+// Listen for access level changes
+socket.on('access_level_changed', function(data) {
+    const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
+    const currentUserId = sessionData.uid;
+    
+    // If this event is for the current user
+    if (data.collaboratorUid === currentUserId) {
+        userAccessLevel = data.newAccessLevel;
+        
+        // Get the current content before reinitializing
+        const currentContent = editor ? editor.getValue() : document.querySelector('#editor-container pre')?.textContent || '';
+        
+        // Clear the editor container
+        const editorContainer = document.getElementById('editor-container');
+        editorContainer.innerHTML = '';
+        
+        if (userAccessLevel === 'viewer') {
+            // For viewers, display the content in read-only format
+            editorContainer.innerHTML = `
+                <div class="h-full bg-[#1e1e1e] text-white p-4 overflow-auto">
+                    <div class="mb-4 pb-2 border-b border-gray-700">
+                        <h2 class="text-lg font-semibold">${currentFile}</h2>
+                        <div class="flex items-center text-sm text-gray-400">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                            </svg>
+                            View-Only Access
+                        </div>
+                    </div>
+                    <pre class="font-mono whitespace-pre-wrap">${currentContent}</pre>
+                </div>
+            `;
+            editor = null; // Clear the editor instance
+        } else {
+            // For editors, reinitialize the Monaco editor
+            editor = monaco.editor.create(editorContainer, {
+                value: currentContent,
+                language: 'latex',
+                theme: window.initialMonacoTheme,
+                minimap: {enabled: false},
+                automaticLayout: false,
+                readOnly: false
+            });
+
+            // Set up content change handlers
+            const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
+            const userId = sessionData.uid;
+            const params = new URLSearchParams(window.location.search);
+            const project = params.get('project');
+
+            editor.getModel().onDidChangeContent(() => {
+                socket.emit('update_text', { 
+                    content: editor.getValue(), 
+                    path: currentFile, 
+                    uid: userId, 
+                    project: project 
+                });
+                if (realtimeEnabled) {
+                    clearTimeout(compileTimeout);
+                    compileTimeout = setTimeout(compileLatex, 1000);
+                }
+            });
+        }
+        
+        // Apply access restrictions
+        applyAccessRestrictions();
+        
+        // Show notification
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+        notification.innerHTML = `Your access level has been changed to: ${data.newAccessLevel}`;
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+    }
+    
+    // Update the collaborators dialog if it's open
+    const dialog = document.getElementById('collaborators-dialog');
+    if (dialog && dialog.open) {
+        const collaboratorElement = dialog.querySelector(`[data-uid="${data.collaboratorUid}"]`);
+        if (collaboratorElement) {
+            const accessSpan = collaboratorElement.querySelector('.access-level');
+            if (accessSpan) {
+                accessSpan.textContent = data.newAccessLevel === 'viewer' ? 'Viewer' : 'Editor';
+            }
+        }
+    }
+});
+
+// Function to update collaborator access level
+async function updateCollaboratorAccess(shareHash, collaboratorUid, accessLevel) {
+    try {
+        // Emit socket event immediately for real-time update
+        socket.emit('update_access_level', {
+            shareHash: shareHash,
+            collaboratorUid: collaboratorUid,
+            newAccessLevel: accessLevel,
+            projectName: new URLSearchParams(window.location.search).get('project')
+        });
+
+        const response = await fetch('/api/project/collaborator', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                hash: shareHash,
+                collaboratorUid: collaboratorUid,
+                accessLevel: accessLevel
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update collaborator access');
+        }
+
+        // Update the UI without refreshing the entire collaborators list
+        const collaboratorElement = document.querySelector(`[data-uid="${collaboratorUid}"]`);
+        if (collaboratorElement) {
+            const accessSpan = collaboratorElement.querySelector('.access-level');
+            if (accessSpan) {
+                accessSpan.textContent = accessLevel === 'viewer' ? 'Viewer' : 'Editor';
+            }
+        }
+    } catch (error) {
+        console.error('Error updating collaborator access:', error);
+        alert('Failed to update collaborator access. Please try again.');
+    }
+}
+
+// Function to show collaborators dialog
+async function showCollaborators() {
+    const dialog = document.getElementById('collaborators-dialog');
+    if (!dialog) {
+        console.error('Collaborators dialog not found');
+        return;
+    }
+
+    try {
+        const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
+        const currentUserId = sessionData.uid;
+        const params = new URLSearchParams(window.location.search);
+        const project = params.get('project');
+
+        // Get share hash
+        const shareResponse = await fetch('/api/share-project', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                projectName: project,
+                projectPath: project
+            })
+        });
+        
+        if (!shareResponse.ok) {
+            throw new Error('Failed to get project information');
+        }
+        
+        const { shareHash } = await shareResponse.json();
+        
+        // Get collaborators
+        const collabResponse = await fetch(`/api/project/collaborators?hash=${shareHash}`);
+        if (!collabResponse.ok) {
+            throw new Error('Failed to fetch collaborators');
+        }
+        
+        const data = await collabResponse.json();
+        const isCurrentUserOwner = data.owner.uid === currentUserId;
+        
+        // Update owner info
+        const ownerInfo = document.getElementById('owner-info');
+        ownerInfo.innerHTML = `
+            <div class="flex items-center justify-between border-b border-gray-700 pb-2">
+                <span>${isCurrentUserOwner ? 'Me' : (data.owner.name || data.owner.email)}</span>
+                <span class="text-blue-400">Owner</span>
+            </div>
+        `;
+        
+        // Update collaborators list
+        const collaboratorsList = document.getElementById('collaborators-list');
+        const noCollaborators = document.getElementById('no-collaborators');
+        
+        // Clear existing content
+        collaboratorsList.innerHTML = '';
+        
+        if (!data.collaborators || data.collaborators.length === 0) {
+            noCollaborators.style.display = 'block';
+        } else {
+            noCollaborators.style.display = 'none';
+            
+            // Add each collaborator
+            data.collaborators.forEach(collab => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between py-2 border-b border-gray-700';
+                div.setAttribute('data-uid', collab.uid); // Add data-uid attribute for easy updates
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = collab.uid === currentUserId ? 'Me' : (collab.name || collab.email);
+                
+                const accessDiv = document.createElement('div');
+                accessDiv.className = 'flex items-center space-x-3';
+                
+                if (isCurrentUserOwner) {
+                    const select = document.createElement('select');
+                    select.className = 'bg-[#2d2d2d] text-white border border-gray-700 rounded px-2 py-1 cursor-pointer';
+                    
+                    const viewerOption = document.createElement('option');
+                    viewerOption.value = 'viewer';
+                    viewerOption.textContent = 'Viewer';
+                    viewerOption.selected = collab.access_level === 'viewer';
+                    
+                    const editorOption = document.createElement('option');
+                    editorOption.value = 'editor';
+                    editorOption.textContent = 'Editor';
+                    editorOption.selected = collab.access_level === 'editor';
+                    
+                    select.appendChild(viewerOption);
+                    select.appendChild(editorOption);
+                    
+                    select.addEventListener('change', () => {
+                        updateCollaboratorAccess(shareHash, collab.uid, select.value);
+                    });
+                    
+                    accessDiv.appendChild(select);
+                } else {
+                    const accessSpan = document.createElement('span');
+                    accessSpan.className = 'text-gray-400 access-level';
+                    accessSpan.textContent = collab.access_level === 'viewer' ? 'Viewer' : 'Editor';
+                    accessDiv.appendChild(accessSpan);
+                }
+                
+                div.appendChild(nameSpan);
+                div.appendChild(accessDiv);
+                collaboratorsList.appendChild(div);
+            });
+        }
+        
+        // Show the dialog
+        dialog.showModal();
+        
+    } catch (error) {
+        console.error('Error showing collaborators:', error);
+        alert('Failed to load collaborators. Please try again.');
+    }
+}
+
+// Add this CSS to make the dialog look better
+const style = document.createElement('style');
+style.textContent = `
+    dialog {
+        border: none;
+        padding: 0;
+        border-radius: 0.5rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        max-width: 90vw;
+    }
+
+    dialog::backdrop {
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    dialog[open] {
+        animation: show-dialog 0.3s ease normal;
+    }
+
+    @keyframes show-dialog {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+`;
+document.head.appendChild(style);
 
 // Initialize Split.js to divide the editor and PDF panes
 require(['split'], function (Split) {

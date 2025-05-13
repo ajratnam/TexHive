@@ -236,14 +236,16 @@ def join_project(uid, share_hash):
         return "Project not found", 404
         
     # Check if user is already a collaborator
-    if not any(collab['uid'] == uid for collab in project_data['collaborators']):
+    existing_collab = next((c for c in project_data['collaborators'] if c['uid'] == uid), None)
+    if not existing_collab:
         try:
             user = auth.get_user(uid)
-            # Add user to collaborators
+            # Add user as viewer by default
             project_data['collaborators'].append({
                 'uid': uid,
                 'name': user.display_name,
-                'email': user.email
+                'email': user.email,
+                'access_level': 'viewer'  # Default access level
             })
             save_shared_data(shared_data)
         except Exception as e:
@@ -256,15 +258,75 @@ def join_project(uid, share_hash):
     
     try:
         os.makedirs(user_dir, exist_ok=True)
-        # Remove existing link if it exists
         if os.path.exists(project_link):
             if os.path.islink(project_link):
                 os.unlink(project_link)
             else:
                 return "Project with same name already exists", 400
-        # Create symbolic link
         os.symlink(shared_dir, project_link, target_is_directory=True)
     except Exception as e:
         return f"Failed to setup project: {str(e)}", 500
     
     return redirect(url_for('main.editor', project=project_data['name']))
+
+
+@bp.route('/api/project/collaborators', methods=['GET'])
+@login_required
+def get_collaborators(uid):
+    share_hash = request.args.get('hash')
+    if not share_hash:
+        return jsonify({'error': 'Missing project hash'}), 400
+        
+    data_file = Config.DATA_DIR / 'shared' / 'data.json'
+    if not os.path.exists(data_file):
+        os.makedirs(data_file.parent, exist_ok=True)
+        with open(data_file, 'w') as f:
+            json.dump({}, f)
+            
+    with open(data_file, 'r') as f:
+        shared_data = json.load(f)
+        
+    project_data = shared_data.get(share_hash, {})
+    
+    if not project_data:
+        return jsonify({'error': 'Project not found'}), 404
+        
+    # Ensure collaborators have access_level
+    for collab in project_data.get('collaborators', []):
+        if 'access_level' not in collab:
+            collab['access_level'] = 'viewer'
+            
+    return jsonify({
+        'collaborators': project_data.get('collaborators', []),
+        'owner': project_data.get('owner', {})
+    })
+
+@bp.route('/api/project/collaborator', methods=['PUT'])
+@login_required
+def update_collaborator_access(uid):
+    data = request.get_json()
+    share_hash = data.get('hash')
+    collaborator_uid = data.get('collaboratorUid')
+    access_level = data.get('accessLevel')
+    
+    if not all([share_hash, collaborator_uid, access_level]) or access_level not in ['viewer', 'editor']:
+        return jsonify({'error': 'Invalid request data'}), 400
+        
+    shared_data = get_shared_data()
+    project_data = shared_data.get(share_hash)
+    
+    if not project_data:
+        return jsonify({'error': 'Project not found'}), 404
+        
+    # Only owner can modify collaborator access
+    if project_data['owner']['uid'] != uid:
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    # Update collaborator access level
+    for collab in project_data['collaborators']:
+        if collab['uid'] == collaborator_uid:
+            collab['access_level'] = access_level
+            save_shared_data(shared_data)
+            return jsonify({'status': 'success'})
+            
+    return jsonify({'error': 'Collaborator not found'}), 404

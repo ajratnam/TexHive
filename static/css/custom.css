@@ -261,3 +261,84 @@ body.on-projects-page #ignore-warnings + label { /* Hide toggle and its label */
 #new-project-btn {
   /* Example: Add subtle gradient or icon */
 }
+
+#collaborators-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#collaborators-btn svg {
+    margin-right: 0.5rem;
+}
+
+/* Dialog styles */
+dialog {
+    border: none;
+    padding: 0;
+    border-radius: 0.5rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    max-width: 90vw;
+    max-height: 90vh;
+}
+
+dialog::backdrop {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+dialog[open] {
+    animation: show-dialog 0.3s ease normal;
+}
+
+@keyframes show-dialog {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Collaborator card hover effect */
+#collaborators-list > div:hover {
+    background-color: var(--header-color);
+    transition: background-color 0.2s ease;
+}
+
+/* Remove hover effects from select elements */
+select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1em;
+    padding-right: 2.5rem;
+}
+
+select:hover {
+    transform: none;
+}
+
+/* Ensure consistent styling for collaborator dialogs */
+.dialog-content select {
+    background-color: #2d2d2d;
+    color: white;
+    border: 1px solid #4a4a4a;
+    border-radius: 4px;
+    padding: 0.25rem 2rem 0.25rem 0.5rem;
+}
+
+.dialog-content select:focus {
+    outline: none;
+    border-color: #6b7280;
+}
+
+/* Ensure consistent text capitalization */
+.dialog-content select option,
+.dialog-content .text-gray-400 {
+    text-transform: capitalize;
+}
