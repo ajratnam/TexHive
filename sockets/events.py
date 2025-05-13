@@ -13,10 +13,22 @@ def register_socket_events(socketio, app):
             return  # Optionally emit an error
         uid = data.get('uid') if data else None
         project = data.get('project') if data else None
+        
+        if not all([file_path, uid, project]):
+            return
+            
+        # Save the file
         abs_path = os.path.join(Config.DATA_DIR / uid / project, file_path)
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
         write_file(abs_path, data.get('content', ''))
-        emit('update_text', data, broadcast=True, include_self=False)
+        
+        # Broadcast to all users in the project room
+        room = f"project_{project}"
+        emit('text_updated', {
+            'path': file_path,
+            'content': data.get('content', ''),
+            'uid': uid
+        }, room=room, include_self=False)  # Don't send back to sender
 
     @socketio.on('update_access_level')
     def handle_access_level_update(data):

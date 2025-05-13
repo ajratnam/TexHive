@@ -22,6 +22,44 @@ let currentFile = ""; // currently open file
 let contextMenuTarget = null;
 const ZOOM_STEP = 1.1;
 let userAccessLevel = null; // Store user's access level
+let isApplyingExternalChange = false; // Flag to prevent infinite loops
+
+// Listen for real-time text updates
+socket.on('text_updated', function(data) {
+    // Only update if we're viewing the same file
+    if (data.path === currentFile) {
+        isApplyingExternalChange = true;
+        if (editor && userAccessLevel !== 'viewer') {
+            // Get the current cursor position and selections
+            const position = editor.getPosition();
+            const selections = editor.getSelections();
+            
+            // Update the content
+            editor.setValue(data.content);
+            
+            // Restore cursor position and selections
+            if (position) {
+                editor.setPosition(position);
+            }
+            if (selections) {
+                editor.setSelections(selections);
+            }
+        } else if (userAccessLevel === 'viewer') {
+            // Update the read-only view
+            const preElement = document.querySelector('#editor-container pre');
+            if (preElement) {
+                preElement.textContent = data.content;
+            }
+        }
+        isApplyingExternalChange = false;
+        
+        // If realtime compilation is enabled, trigger a compile
+        if (realtimeEnabled) {
+            clearTimeout(compileTimeout);
+            compileTimeout = setTimeout(compileLatex, 1000);
+        }
+    }
+});
 
 // Toggle the file explorer sidebar
 function toggleSidebar() {
@@ -493,13 +531,20 @@ require(['vs/editor/editor.main'], function () {
             
             // Set up content change handlers
             editor.getModel().onDidChangeContent(() => {
-                socket.emit('update_text', { content: editor.getValue(), path: currentFile, uid: userId, project: project });
-                if (realtimeEnabled) {
-                    clearTimeout(compileTimeout);
-                    compileTimeout = setTimeout(compileLatex, 1000);
+                // Only emit if the change wasn't from an external update
+                if (!isApplyingExternalChange) {
+                    socket.emit('update_text', { 
+                        content: editor.getValue(), 
+                        path: currentFile, 
+                        uid: userId, 
+                        project: project 
+                    });
+                    if (realtimeEnabled) {
+                        clearTimeout(compileTimeout);
+                        compileTimeout = setTimeout(compileLatex, 1000);
+                    }
                 }
             });
-            socket.emit('update_text', { content: editor.getValue(), path: currentFile, uid: userId, project: project });
         }
 
         updateEditorTheme(window.initialMonacoTheme);
