@@ -312,22 +312,10 @@ function initializeEditorWithTexFile(treeData) {
     loadFile(currentFile);
     compileLatex();
   } else {
-    currentFile = "document.tex";
-    const baseContent = '\\documentclass{article}\n\\begin{document}\nHello, LaTeX!\n\\end{document}';
-    fetch('/api/file', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: currentFile, content: baseContent })
-    })
-    .then(response => {
-      if (!response.ok) throw new Error("Could not create document.tex");
-      return response.json();
-    })
-    .then(() => {
-      fetchFileTree(() => loadFile(currentFile));
-      compileLatex();
-    })
-    .catch(err => alert("Error creating document.tex: " + err.message));
+    // Look for main.tex in the root directory
+    currentFile = "main.tex";
+    loadFile(currentFile);
+    compileLatex();
   }
 }
 

@@ -361,3 +361,66 @@ def update_collaborator_access(uid):
                 return jsonify({'status': 'success'})
                 
         return jsonify({'error': 'Collaborator not found'}), 404
+
+@bp.route('/api/templates')
+@login_required
+def list_templates(uid):
+    templates_dir = os.path.join(os.path.dirname(__file__), '..', 'static', 'templates')
+    templates = []
+    
+    # Get all template directories except 'shared'
+    for template in os.listdir(templates_dir):
+        if template != 'shared' and os.path.isdir(os.path.join(templates_dir, template)):
+            templates.append({
+                'id': template,
+                'name': template.upper(),
+                'description': f"{template.upper()} LaTeX Template"
+            })
+    
+    return jsonify(templates)
+
+@bp.route('/api/create-project', methods=['POST'])
+@login_required
+def create_project(uid):
+    data = request.get_json()
+    project_name = data.get('projectName')
+    template_id = data.get('templateId')
+    
+    if not project_name or not template_id:
+        return jsonify({'error': 'Missing project name or template'}), 400
+        
+    # Create project directory
+    project_dir = Config.DATA_DIR / uid / project_name
+    if os.path.exists(project_dir):
+        return jsonify({'error': 'Project already exists'}), 400
+        
+    try:
+        # Create project directory
+        os.makedirs(project_dir)
+        
+        # Copy template files
+        template_dir = os.path.join(os.path.dirname(__file__), '..', 'static', 'templates', template_id)
+        shared_dir = os.path.join(os.path.dirname(__file__), '..', 'static', 'templates', 'shared')
+        
+        # Copy template-specific files
+        for file in os.listdir(template_dir):
+            src = os.path.join(template_dir, file)
+            dst = os.path.join(project_dir, file)
+            shutil.copy2(src, dst)
+            
+        # Copy shared files
+        for file in os.listdir(shared_dir):
+            src = os.path.join(shared_dir, file)
+            dst = os.path.join(project_dir, file)
+            shutil.copy2(src, dst)
+            
+        return jsonify({
+            'status': 'success',
+            'message': 'Project created successfully',
+            'projectName': project_name
+        })
+        
+    except Exception as e:
+        if os.path.exists(project_dir):
+            shutil.rmtree(project_dir)
+        return jsonify({'error': str(e)}), 500
