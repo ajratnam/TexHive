@@ -4,6 +4,7 @@ import secrets
 import shutil
 import json
 from datetime import datetime
+import requests
 
 from flask import Blueprint, render_template, Response, request, redirect, url_for, jsonify
 from core.config import Config
@@ -423,4 +424,25 @@ def create_project(uid):
     except Exception as e:
         if os.path.exists(project_dir):
             shutil.rmtree(project_dir)
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/api/humanize', methods=['POST'])
+def humanize_text():
+    try:
+        data = request.get_json()
+        if not data or 'text' not in data:
+            return jsonify({'error': 'No text provided'}), 400
+
+        # Forward request to humanize microservice
+        response = requests.post(
+            "http://humanize-service:8003/humanize",
+            json={"text": data['text']}
+        )
+        
+        if response.status_code != 200:
+            return jsonify({'error': 'Humanization service failed'}), 500
+            
+        return jsonify(response.json())
+        
+    except Exception as e:
         return jsonify({'error': str(e)}), 500

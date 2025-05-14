@@ -40,6 +40,300 @@ let contextMenuTarget = null;
 const ZOOM_STEP = 1.1;
 let userAccessLevel = null; // Store user's access level
 let isApplyingExternalChange = false; // Flag to prevent infinite loops
+let humanizePopup = null; // Store reference to humanize popup
+let lastHumanizedSelection = null; // Store last humanized selection
+let isHumanizing = false; // Flag to track if humanization is in progress
+
+// Create humanize popup element
+function createHumanizePopup() {
+    const popup = document.createElement('div');
+    popup.id = 'humanize-popup';
+    popup.className = 'fixed bg-gray-800 text-white px-3 py-1 rounded shadow-lg z-50 hidden';
+    popup.innerHTML = `
+        <button id="humanize-btn" class="text-sm hover:text-blue-400 transition-colors">
+            Humanize
+        </button>
+    `;
+    document.body.appendChild(popup);
+    return popup;
+}
+
+// Create humanize result dialog
+function createHumanizeDialog() {
+    // Remove existing dialog if it exists
+    const existingDialog = document.getElementById('humanize-dialog');
+    if (existingDialog) {
+        existingDialog.remove();
+    }
+
+    const dialog = document.createElement('div');
+    dialog.id = 'humanize-dialog';
+    dialog.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden';
+    dialog.innerHTML = `
+        <div class="bg-gray-800 p-6 rounded-lg shadow-xl max-w-2xl w-full mx-4">
+            <h3 class="text-xl font-semibold mb-4">Humanized Text</h3>
+            <div class="mb-4">
+                <p class="text-sm text-gray-400 mb-2">Original:</p>
+                <div id="original-text" class="bg-gray-700 p-3 rounded mb-4"></div>
+                <p class="text-sm text-gray-400 mb-2">Humanized:</p>
+                <div id="humanized-text" class="bg-gray-700 p-3 rounded"></div>
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button id="reject-humanize" class="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600 transition-colors">
+                    Reject
+                </button>
+                <button id="accept-humanize" class="px-4 py-2 bg-blue-600 rounded hover:bg-blue-500 transition-colors">
+                    Accept
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(dialog);
+    return dialog;
+}
+
+// Show humanize popup at selection position
+function showHumanizePopup(x, y) {
+    if (!humanizePopup) {
+        humanizePopup = createHumanizePopup();
+    }
+    humanizePopup.style.left = `${x}px`;
+    humanizePopup.style.top = `${y}px`;
+    humanizePopup.classList.remove('hidden');
+}
+
+// Hide humanize popup
+function hideHumanizePopup() {
+    if (humanizePopup) {
+        humanizePopup.classList.add('hidden');
+    }
+}
+
+// Show humanize result dialog
+function showHumanizeDialog(originalText, humanizedText) {
+    console.log('Showing dialog with:', { originalText, humanizedText });
+    
+    // Create dialog if it doesn't exist
+    let dialog = document.getElementById('humanize-dialog');
+    if (!dialog) {
+        dialog = createHumanizeDialog();
+    }
+    
+    // Update dialog content
+    const originalElement = document.getElementById('original-text');
+    const humanizedElement = document.getElementById('humanized-text');
+    
+    if (originalElement && humanizedElement) {
+        originalElement.textContent = originalText;
+        humanizedElement.textContent = humanizedText;
+        dialog.classList.remove('hidden');
+    } else {
+        console.error('Dialog elements not found');
+        // Try recreating the dialog
+        dialog = createHumanizeDialog();
+        const newOriginalElement = document.getElementById('original-text');
+        const newHumanizedElement = document.getElementById('humanized-text');
+        if (newOriginalElement && newHumanizedElement) {
+            newOriginalElement.textContent = originalText;
+            newHumanizedElement.textContent = humanizedText;
+            dialog.classList.remove('hidden');
+        } else {
+            console.error('Failed to create dialog elements');
+            alert('Failed to show humanization results. Please try again.');
+        }
+    }
+}
+
+// Hide humanize result dialog
+function hideHumanizeDialog() {
+    const dialog = document.getElementById('humanize-dialog');
+    if (dialog) {
+        dialog.classList.add('hidden');
+    }
+}
+
+// Handle text selection
+function handleTextSelection(e) {
+    if (!editor || userAccessLevel === 'viewer') return;
+    
+    const selection = editor.getSelection();
+    if (selection && !selection.isEmpty()) {
+        const selectedText = editor.getModel().getValueInRange(selection);
+        // Count words (split by whitespace and filter out empty strings)
+        const wordCount = selectedText.trim().split(/\s+/).filter(word => word.length > 0).length;
+        
+        // Only show humanize option if word count is at least 30
+        if (wordCount >= 30) {
+            const position = editor.getPosition();
+            const coordinates = editor.getScrolledVisiblePosition(position);
+            const editorElement = document.getElementById('editor-container');
+            const editorRect = editorElement.getBoundingClientRect();
+            
+            showHumanizePopup(
+                editorRect.left + coordinates.left,
+                editorRect.top + coordinates.top - 30
+            );
+        } else {
+            hideHumanizePopup();
+        }
+    } else {
+        hideHumanizePopup();
+    }
+}
+
+// Check if text has minimum required words
+function hasMinimumWordCount(text) {
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length >= 30;
+}
+
+// Handle humanize button click
+async function handleHumanize() {
+    if (!editor || isHumanizing) return;
+    
+    const selection = editor.getSelection();
+    if (!selection || selection.isEmpty()) return;
+    
+    const selectedText = editor.getModel().getValueInRange(selection);
+    console.log('Selected text:', selectedText);
+    
+    // Check minimum word count
+    if (!hasMinimumWordCount(selectedText)) {
+        alert('Please select at least 30 words to use the humanize feature.');
+        return;
+    }
+    
+    lastHumanizedSelection = selection;
+    isHumanizing = true;
+    
+    try {
+        // Show loading state
+        const humanizeBtn = document.getElementById('humanize-btn');
+        humanizeBtn.textContent = 'Humanizing...';
+        humanizeBtn.disabled = true;
+        
+        // Call backend endpoint instead of microservice directly
+        const response = await fetch('/api/humanize', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ text: selectedText })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Humanization failed');
+        }
+        
+        const result = await response.json();
+        console.log('Humanization result:', result);
+        
+        // Check if we have the humanized text in the response
+        if (!result || !result.humanized_text) {
+            throw new Error('Invalid response from humanization service');
+        }
+        
+        // Show result dialog
+        hideHumanizePopup();
+        showHumanizeDialog(selectedText, result.humanized_text);
+        
+    } catch (error) {
+        console.error('Error during humanization:', error);
+        alert('Failed to humanize text. Please try again.');
+    } finally {
+        isHumanizing = false;
+        const humanizeBtn = document.getElementById('humanize-btn');
+        humanizeBtn.textContent = 'Humanize';
+        humanizeBtn.disabled = false;
+    }
+}
+
+// Handle accept/reject of humanized text
+function handleHumanizeResult(accepted) {
+    console.log('Handling humanize result, accepted:', accepted);
+    console.log('Last selection:', lastHumanizedSelection);
+    
+    if (!editor || !lastHumanizedSelection) {
+        console.error('Editor or selection not available');
+        return;
+    }
+    
+    if (accepted) {
+        const humanizedText = document.getElementById('humanized-text').textContent;
+        console.log('Humanized text to insert:', humanizedText);
+        
+        try {
+            // Create a new edit operation
+            const editOperation = {
+                range: lastHumanizedSelection,
+                text: humanizedText,
+                forceMoveMarkers: true
+            };
+            
+            console.log('Edit operation:', editOperation);
+            
+            // Apply the edit
+            const result = editor.executeEdits('humanize', [editOperation]);
+            console.log('Edit result:', result);
+            
+            if (!result) {
+                throw new Error('Edit operation failed');
+            }
+            
+            // Emit the change to other users
+            const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
+            const userId = sessionData.uid;
+            const params = new URLSearchParams(window.location.search);
+            const project = params.get('project');
+            
+            socket.emit('update_text', { 
+                content: editor.getValue(), 
+                path: currentFile, 
+                uid: userId, 
+                project: project 
+            });
+        } catch (error) {
+            console.error('Error applying edit:', error);
+            alert('Failed to apply humanized text. Please try again.');
+        }
+    }
+    
+    hideHumanizeDialog();
+    lastHumanizedSelection = null;
+}
+
+// Initialize humanize feature
+function initializeHumanizeFeature() {
+    if (!editor) return;
+    
+    // Create dialog elements on initialization
+    createHumanizeDialog();
+    
+    // Add selection change listener
+    editor.onDidChangeCursorSelection(handleTextSelection);
+    
+    // Add click outside listener to hide popup
+    document.addEventListener('click', (e) => {
+        if (!humanizePopup?.contains(e.target)) {
+            hideHumanizePopup();
+        }
+    });
+    
+    // Add humanize button click handler
+    document.addEventListener('click', (e) => {
+        if (e.target.id === 'humanize-btn') {
+            handleHumanize();
+        }
+    });
+    
+    // Add accept/reject handlers
+    document.addEventListener('click', (e) => {
+        if (e.target.id === 'accept-humanize') {
+            handleHumanizeResult(true);
+        } else if (e.target.id === 'reject-humanize') {
+            handleHumanizeResult(false);
+        }
+    });
+}
 
 // Listen for real-time text updates
 socket.on('text_updated', function(data) {
@@ -532,6 +826,9 @@ require(['vs/editor/editor.main'], function () {
         automaticLayout: false,
         readOnly: true // Start as read-only until access is checked
     });
+
+    // Initialize humanize feature after editor is created
+    initializeHumanizeFeature();
 
     // Check user access and set up editor accordingly
     checkUserAccess().then(() => {
