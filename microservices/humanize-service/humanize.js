@@ -1,6 +1,7 @@
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 puppeteer.use(StealthPlugin());
+require("dotenv").config()
 
 async function sleep(delay) {
     return new Promise((resolve, reject) => {
@@ -19,7 +20,7 @@ async function humanize(textToType) {
                 width: 1280,
                 height: 720
             },
-            executablePath: "/usr/bin/chromium"
+            executablePath: process.env["PUPPETEER_EXECUTABLE_PATH"]
         });
 
         const context = await browser.createBrowserContext();
@@ -44,7 +45,7 @@ async function humanize(textToType) {
             return element.innerText
         })
 
-        return text.slice(0, text.indexOf("added change"))
+        return text.slice(0, text.indexOf("\nadded change"))
     } catch (err) {
         console.error("Error humanizing text:", err.message)
         return textToType
