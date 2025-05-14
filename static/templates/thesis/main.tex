@@ -1,0 +1,111 @@
+\documentclass[12pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue]{hyperref}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+
+\geometry{margin=2.5cm}
+\onehalfspacing
+
+% Header and footer setup
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\slshape \rightmark}
+\fancyhead[R]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% Title page setup
+\title{\Huge{Your Thesis Title}\\[1cm]
+       \Large{A thesis submitted for the degree of}\\
+       \Large{Doctor of Philosophy}}
+\author{\Large{Your Name}\\[1cm]
+        \large{Department Name}\\
+        \large{Institution Name}\\
+        \large{City, Country}}
+\date{\large{\today}}
+
+\begin{document}
+
+% Front matter
+\frontmatter
+\maketitle
+
+\begin{abstract}
+Your abstract goes here. This should be a comprehensive summary of your thesis work.
+\end{abstract}
+
+\chapter*{Acknowledgements}
+Your acknowledgements go here.
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+% Main matter
+\mainmatter
+
+\chapter{Introduction}
+\section{Background}
+Your introduction and background go here.
+
+\section{Motivation}
+Your research motivation goes here.
+
+\section{Research Objectives}
+Your research objectives go here.
+
+\chapter{Literature Review}
+\section{Previous Work}
+Review of previous work goes here.
+
+\section{Current State of the Art}
+Discussion of current state of the art goes here.
+
+\chapter{Methodology}
+\section{Research Design}
+Your research design goes here.
+
+\section{Data Collection}
+Your data collection methods go here.
+
+\section{Analysis Methods}
+Your analysis methods go here.
+
+\chapter{Results}
+\section{Main Findings}
+Your main findings go here.
+
+\section{Analysis}
+Your analysis goes here.
+
+\chapter{Discussion}
+\section{Interpretation of Results}
+Your interpretation of results goes here.
+
+\section{Implications}
+Discussion of implications goes here.
+
+\chapter{Conclusion}
+\section{Summary}
+Summary of your work goes here.
+
+\section{Future Work}
+Future work directions go here.
+
+% Back matter
+\backmatter
+\bibliographystyle{plain}
+\bibliography{references}
+
+\appendix
+\chapter{Additional Material}
+Your additional material goes here.
+
+\end{document} 

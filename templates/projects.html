@@ -1,150 +1,408 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  {% include 'partials/head.html' %}
-</head>
-<body class="h-screen">
-  <header class="flex items-center justify-between px-4 py-3 bg-header-color text-text-color">
-  <div class="flex items-center">
-    <a href="/">
-      <h1 class="text-2xl font-bold">TexHive</h1>
-    </a>
-  </div>
-  <div class="flex items-center space-x-4">
-    <select id="theme-selector">
-      <option value="dark">Dark</option>
-      <option value="light">Light</option>
-      <option value="solarized">Solarized</option>
-      <option value="dracula">Dracula</option>
-      <option value="monokai">Monokai</option>
-      <option value="nord">Nord</option>
-      <option value="gruvbox">Gruvbox</option>
-      <option value="cobalt">Cobalt</option>
-    </select>
-    <!-- User profile icon -->
-    <div id="user-profile-container" class="relative">
-      <div id="user-profile-icon" class="w-8 h-8 rounded-full bg-gray-300 cursor-pointer"></div>
-      <div id="user-profile-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-lg p-4">
-        <p id="user-name" class="font-bold"></p>
-        <p id="user-email" class="text-sm text-gray-600"></p>
-        <button id="logout-btn" class="mt-4 px-4 py-2 bg-red-500 text-white rounded w-full" onclick="handleLogout()">
-          Logout
-        </button>
-      </div>
+{% extends "base.html" %}
+
+{% block body_class %}on-projects-page{% endblock %}
+
+{% block content %}
+<style>
+    #projectName:focus {
+        color: var(--text-color) !important;
+    }
+    #projectName::placeholder {
+        opacity: 0.6;
+        color: var(--text-color);
+    }
+    .dark-card {
+        background-color: var(--header-color);
+        border: 1px solid var(--gutter-color);
+        transition: all 0.2s ease-in-out;
+        width: 350px; /* Fixed width */
+    }
+    .dark-card:hover {
+        background-color: var(--bg-color);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    /* Theme-aware modal styles */
+    #templateModal .modal-content {
+        background-color: var(--bg-color);
+        border: 1px solid var(--gutter-color);
+    }
+
+    #templateSelect {
+        background-color: var(--header-color);
+        color: var(--text-color);
+        border: 1px solid var(--gutter-color);
+    }
+
+    #templateSelect option {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+    }
+
+    #templateDescription {
+        color: var(--text-color);
+        opacity: 0.8;
+    }
+</style>
+<div class="w-full px-6 py-6">
+    <h1 class="text-3xl font-bold mb-6" style="color: var(--text-color)">Projects</h1>
+
+    <!-- Create New Project Button -->
+    <button id="newProjectBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-6">
+        Create New Project
+    </button>
+
+    <!-- Template Selection Modal -->
+    <div id="templateModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center">
+        <div class="modal-content p-8 rounded-lg shadow-lg w-[500px]">
+            <div class="flex justify-content items-center mb-6">
+                <h2 class="text-2xl font-bold" style="color: var(--text-color)">Create New Project</h2>
+                <button id="closeModalBtn" style="color: var(--text-color); opacity: 0.7;" class="hover:opacity-100">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Template Selection -->
+            <div class="mb-6">
+                <label class="block text-sm font-bold mb-2" style="color: var(--text-color)" for="templateSelect">
+                    Template
+                </label>
+                <div class="relative">
+                    <select id="templateSelect" class="block appearance-none w-full rounded px-4 py-3 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="" disabled selected>Choose your template</option>
+                        <option value="ieee">IEEE Conference</option>
+                        <option value="ieee-journal">IEEE Journal</option>
+                        <option value="acm">ACM Conference</option>
+                        <option value="ams">AMS Mathematical</option>
+                        <option value="article">Basic Article</option>
+                        <option value="thesis">Thesis</option>
+                        <option value="blank">Blank Project</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style="color: var(--text-color)">
+                        <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                            <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                        </svg>
+                    </div>
+                </div>
+                <p class="mt-2 text-sm" id="templateDescription"></p>
+            </div>
+
+            <!-- Project Name Input -->
+            <div class="mb-6">
+                <label class="block text-sm font-bold mb-2" style="color: var(--text-color)" for="projectName">
+                    Project Name
+                </label>
+                <input type="text" id="projectName" 
+                    class="block w-full rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-medium transition-all duration-200" 
+                    style="background-color: var(--header-color); color: var(--text-color); border: 1px solid var(--gutter-color);"
+                    placeholder="Enter your project name"
+                    autocomplete="off"
+                    spellcheck="false">
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex justify-end">
+                <button id="cancelBtn" class="hover:bg-opacity-80 font-bold py-2 px-4 rounded mr-2" 
+                    style="background-color: var(--header-color); color: var(--text-color)">
+                    Cancel
+                </button>
+                <button id="createProjectBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Create Project
+                </button>
+            </div>
+        </div>
     </div>
-  </div>
-</header>
+
+    <!-- Projects List -->
+    <div id="project-list" class="flex flex-wrap gap-6 justify-start w-full">
+        <!-- Loading indicator -->
+        <div id="loading-indicator" class="w-full flex justify-center items-center py-6 hidden">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2" style="border-color: var(--text-color)"></div>
+        </div>
+        
+        <!-- Empty state -->
+        <div id="empty-state" class="w-full text-center py-6 hidden">
+            <p style="color: var(--text-color)">No projects yet. Create your first project!</p>
+        </div>
+    </div>
+</div>
 
 <script>
-  const profileIcon = document.getElementById('user-profile-icon');
-  const profileDropdown = document.getElementById('user-profile-dropdown');
-  const userName = document.getElementById('user-name');
-  const userEmail = document.getElementById('user-email');
+document.addEventListener('DOMContentLoaded', function() {
+    const templateModal = document.getElementById('templateModal');
+    const newProjectBtn = document.getElementById('newProjectBtn');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const createProjectBtn = document.getElementById('createProjectBtn');
+    const templateSelect = document.getElementById('templateSelect');
+    const projectNameInput = document.getElementById('projectName');
+    const templateDescription = document.getElementById('templateDescription');
+    const projectList = document.getElementById('project-list');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const emptyState = document.getElementById('empty-state');
 
-  // Function to update profile UI
-  function updateProfile(user) {
-    if (user) {
-      profileIcon.style.backgroundImage = `url(${user.photoURL || ''})`;
-      profileIcon.style.backgroundSize = 'cover';
-      userName.textContent = user.displayName || '';
-      userEmail.textContent = user.email || '';
-    } else {
-      profileIcon.style.backgroundImage = '';
-      userName.textContent = '';
-      userEmail.textContent = '';
-    }
-  }
+    // Template descriptions
+    const descriptions = {
+        'ieee': 'Standard template for IEEE conference papers with proper formatting and sections.',
+        'ieee-journal': 'Template for IEEE journal publications with extended structure and formatting.',
+        'acm': 'ACM conference template with proper formatting and CCS concepts.',
+        'ams': 'American Mathematical Society template with theorem environments and mathematical formatting.',
+        'article': 'Basic article template for general academic writing.',
+        'thesis': 'Complete thesis template with chapters, front matter, and proper formatting.',
+        'blank': 'Start with a minimal LaTeX document.'
+    };
 
-  // Toggle dropdown
-  profileIcon.addEventListener('click', () => {
-    profileDropdown.classList.toggle('hidden');
-  });
-
-  // Try loading from sessionStorage first
-  try {
-    const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
-    if (sessionData) {
-      updateProfile(sessionData);
-    }
-  } catch (e) {
-    console.error('Session Storage Error:', e);
-  }
-
-  // Update based on Firebase Auth
-  firebase.auth().onAuthStateChanged(function(user) {
-    if (user) {
-      // Save user details into sessionStorage
-      const userDetails = {
-        uid: user.uid,
-        displayName: user.displayName,
-        email: user.email,
-        photoURL: user.photoURL
-      };
-      sessionStorage.setItem('userDetails', JSON.stringify(userDetails));
-
-      updateProfile(user);
-    } else {
-      sessionStorage.removeItem('userDetails');
-      updateProfile(null);
-    }
-  });
-
-  // Handle logout
-  function handleLogout() {
-    window.location.href = '/logout';
-  }
-</script>
-  <div id="main-container" class="flex h-[calc(100vh-64px)]">
-    <div id="projects-container" class="container mx-auto p-8 text-text-color">
-  <div class="flex justify-between items-center mb-6">
-    <h2 class="text-3xl font-bold">My Projects</h2>
-    <button id="new-project-btn" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded shadow transition duration-150 ease-in-out">
-      New Project
-    </button>
-  </div>
-
-  <!-- Loading Indicator -->
-  <div id="loading-indicator" class="text-center py-10 hidden">
-    <div class="loader inline-block"></div>
-    <p class="mt-2">Loading projects...</p>
-  </div>
-
-  <!-- Empty State -->
-  <div id="empty-state" class="text-center py-10 hidden">
-    <p class="text-xl text-gray-500">You don't have any projects yet.</p>
-    <p class="mt-2">Click "New Project" to get started!</p>
-  </div>
-
-  <!-- Project Grid -->
-  <div id="project-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-    <!-- Project cards will be dynamically inserted here -->
-    <!-- Example Project Card Structure (for reference) -->
-    <!--
-    <div class="project-card" data-project-name="MyFirstProject">
-      <h3 class="text-xl font-semibold mb-2">MyFirstProject</h3>
-      <p class="text-sm text-gray-400">Last modified: [Date]</p>
-    </div>
-    -->
-  </div>
-</div>
-  </div>
-
-  {% include 'partials/context_menu.html' %}
-
-  <!-- Include Firebase setup if not already globally available via base.html -->
-  <script src="{{ url_for('static', filename='js/firebase.js') }}"></script>
-  <!-- Include the specific JS for this page -->
-  <script src="{{ url_for('static', filename='js/projects.js') }}"></script>
-  <script>
-    // Basic auth check for the projects page
-    firebase.auth().onAuthStateChanged(function(user) {
-      if (!user) {
-        window.location.href = "/login"; // Redirect to login if not authenticated
-      } else {
-        // User is logged in, proceed to load projects (handled in projects.js)
-        console.log("User authenticated for projects page.");
-      }
+    // Update description when template is selected
+    templateSelect.addEventListener('change', () => {
+        const selected = templateSelect.value;
+        templateDescription.textContent = descriptions[selected] || '';
+        templateSelect.blur();
     });
-  </script>
-</body>
-</html>
+
+    // Show modal
+    newProjectBtn.addEventListener('click', () => {
+        templateModal.classList.remove('hidden');
+    });
+
+    // Hide modal
+    function hideModal() {
+        templateModal.classList.add('hidden');
+        templateSelect.value = '';
+        projectNameInput.value = '';
+        templateDescription.textContent = '';
+    }
+
+    closeModalBtn.addEventListener('click', hideModal);
+    cancelBtn.addEventListener('click', hideModal);
+
+    // Create project
+    createProjectBtn.addEventListener('click', () => {
+        const projectName = projectNameInput.value.trim();
+        const templateId = templateSelect.value;
+
+        if (!projectName) {
+            alert('Please enter a project name');
+            return;
+        }
+
+        if (!templateId) {
+            alert('Please select a template');
+            return;
+        }
+
+        fetch('/api/create-project', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                projectName: projectName,
+                templateId: templateId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                window.location.href = `/editor?project=${encodeURIComponent(projectName)}`;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to create project');
+        });
+    });
+
+    // Close modal when clicking outside
+    templateModal.addEventListener('click', (e) => {
+        if (e.target === templateModal) {
+            hideModal();
+        }
+    });
+
+    // Add this after the const declarations in the script
+    projectNameInput.addEventListener('input', function(e) {
+        // Ensure the input value is visible
+        this.style.color = '#111827'; // text-gray-900
+        if (this.value.trim() === '') {
+            this.classList.add('placeholder-shown');
+        } else {
+            this.classList.remove('placeholder-shown');
+        }
+    });
+
+    // Function to fetch and display projects
+    async function fetchProjects() {
+        showLoading(true);
+        try {
+            const response = await fetch('/api/files');
+            if (!response.ok) {
+                throw new Error('Failed to fetch projects');
+            }
+            const data = await response.json();
+            console.log('Raw API response:', data);
+            const projects = data.filter(item => item.isDirectory);
+            console.log('Filtered projects:', projects);
+            renderProjects(projects);
+        } catch (error) {
+            console.error('Error fetching projects:', error);
+            projectList.innerHTML = '<div class="col-span-full text-red-500 text-center">Failed to load projects</div>';
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // Function to render projects
+    function renderProjects(projects) {
+        console.log('Starting to render projects:', projects);
+        const projectsContainer = document.createElement('div');
+        projectsContainer.className = 'flex flex-wrap gap-6 justify-start w-full';
+        
+        if (!projects || projects.length === 0) {
+            console.log('No projects found');
+            showEmptyState(true);
+            return;
+        }
+        
+        showEmptyState(false);
+        
+        projects.forEach(project => {
+            console.log('Creating card for project:', project);
+            const projectName = project.path || project.name;
+            console.log('Using project name:', projectName);
+            
+            const card = document.createElement('div');
+            card.className = 'dark-card rounded-lg shadow-md p-5 hover:shadow-lg transition-shadow duration-200 cursor-pointer';
+            card.onclick = () => window.location.href = `/editor?project=${encodeURIComponent(projectName)}`;
+            card.innerHTML = `
+                <div class="flex justify-between items-center space-x-4">
+                    <h3 class="text-xl font-semibold truncate flex-1" style="color: var(--text-color)" title="${projectName}">
+                        ${projectName}
+                    </h3>
+                    <button onclick="event.stopPropagation(); deleteProject('${projectName}')"
+                            class="text-red-500 hover:text-red-600 px-3 py-1.5 rounded transition-colors duration-200 flex-shrink-0">
+                        Delete
+                    </button>
+                </div>
+            `;
+            
+            const cardWrapper = document.createElement('div');
+            cardWrapper.className = 'flex-none';
+            cardWrapper.appendChild(card);
+            projectsContainer.appendChild(cardWrapper);
+        });
+
+        // Add invisible spacer elements to maintain last row alignment
+        for (let i = 0; i < 2; i++) {
+            const spacer = document.createElement('div');
+            spacer.className = 'flex-none w-[350px] invisible';
+            projectsContainer.appendChild(spacer);
+        }
+
+        // Clear existing content and add new projects
+        while (projectList.firstChild) {
+            projectList.removeChild(projectList.firstChild);
+        }
+        projectList.appendChild(projectsContainer);
+        console.log('Finished rendering projects');
+    }
+
+    // Make deleteProject function globally accessible
+    window.deleteProject = async function(projectName) {
+        if (!confirm(`Are you sure you want to delete "${projectName}"? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            showLoading(true);
+            const response = await fetch(`/api/file?path=${encodeURIComponent(projectName)}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to delete project');
+            }
+
+            // Show success message
+            const successMessage = document.createElement('div');
+            successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg z-50';
+            successMessage.textContent = `Project "${projectName}" deleted successfully`;
+            document.body.appendChild(successMessage);
+            
+            // Remove success message after 3 seconds
+            setTimeout(() => {
+                successMessage.remove();
+            }, 3000);
+
+            // Refresh the projects list
+            await fetchProjects();
+
+        } catch (error) {
+            console.error('Error deleting project:', error);
+            
+            // Show error message
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg z-50';
+            errorMessage.textContent = `Error deleting project: ${error.message}`;
+            document.body.appendChild(errorMessage);
+            
+            // Remove error message after 3 seconds
+            setTimeout(() => {
+                errorMessage.remove();
+            }, 3000);
+        } finally {
+            showLoading(false);
+        }
+    };
+
+    // Helper functions
+    function showLoading(show) {
+        if (loadingIndicator) {
+            loadingIndicator.classList.toggle('hidden', !show);
+        }
+    }
+
+    function showEmptyState(show) {
+        if (emptyState) {
+            emptyState.classList.toggle('hidden', !show);
+        }
+        
+        // If showing empty state, ensure loading indicator is hidden
+        if (show) {
+            showLoading(false);
+        }
+    }
+
+    // Add styles for notifications
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .fixed.top-4.right-4 {
+            animation: slideIn 0.3s ease-out;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Initialize
+    fetchProjects();
+});
+</script>
+{% endblock %}
