@@ -3,7 +3,7 @@
 <head>
   {% include 'partials/head.html' %}
 </head>
-<body class="h-screen">
+<body class="h-screen {% block body_class %}{% endblock %}">
   {% include 'partials/header.html' %}
   <div id="main-container" class="flex h-[calc(100vh-64px)]">
     {% block content %}{% endblock %}

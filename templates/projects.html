@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block body_class %}on-projects-page{% endblock %}
+
 {% block content %}
 <style>
     #projectName:focus {
@@ -12,23 +14,27 @@
     .dark-card {
         background-color: #1f2937;
         border: 1px solid #374151;
+        transition: all 0.2s ease-in-out;
+        width: 350px; /* Fixed width */
     }
     .dark-card:hover {
         background-color: #2d3748;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
 </style>
-<div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-8 text-white">Projects</h1>
+<div class="w-full px-6 py-6">
+    <h1 class="text-3xl font-bold mb-6 text-white">Projects</h1>
 
     <!-- Create New Project Button -->
-    <button id="newProjectBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-8">
+    <button id="newProjectBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-6">
         Create New Project
     </button>
 
     <!-- Template Selection Modal -->
     <div id="templateModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center">
         <div class="bg-gray-800 p-8 rounded-lg shadow-lg w-[500px] border border-gray-700">
-            <div class="flex justify-between items-center mb-6">
+            <div class="flex justify-content items-center mb-6">
                 <h2 class="text-2xl font-bold text-white">Create New Project</h2>
                 <button id="closeModalBtn" class="text-gray-400 hover:text-gray-200">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -87,14 +93,14 @@
     </div>
 
     <!-- Projects List -->
-    <div id="project-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div id="project-list" class="flex flex-wrap justify-between gap-y-5 w-full">
         <!-- Loading indicator -->
-        <div id="loading-indicator" class="col-span-full flex justify-center items-center py-8 hidden">
+        <div id="loading-indicator" class="w-full flex justify-center items-center py-6 hidden">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
         </div>
         
         <!-- Empty state -->
-        <div id="empty-state" class="col-span-full text-center py-8 hidden">
+        <div id="empty-state" class="w-full text-center py-6 hidden">
             <p class="text-gray-400">No projects yet. Create your first project!</p>
         </div>
     </div>
@@ -230,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderProjects(projects) {
         console.log('Starting to render projects:', projects);
         const projectsContainer = document.createElement('div');
-        projectsContainer.className = 'col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
+        projectsContainer.className = 'flex flex-wrap justify-between gap-y-5 w-full';
         
         if (!projects || projects.length === 0) {
             console.log('No projects found');
@@ -246,22 +252,33 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Using project name:', projectName);
             
             const card = document.createElement('div');
-            card.className = 'dark-card rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200';
+            card.className = 'dark-card rounded-lg shadow-md p-5 hover:shadow-lg transition-shadow duration-200 cursor-pointer';
+            card.onclick = () => window.location.href = `/editor?project=${encodeURIComponent(projectName)}`;
             card.innerHTML = `
-                <h3 class="text-xl font-semibold mb-4 text-gray-200">${projectName}</h3>
-                <div class="flex justify-between items-center">
-                    <button onclick="window.location.href='/editor?project=${encodeURIComponent(projectName)}'"
-                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors duration-200">
-                        Open
-                    </button>
-                    <button onclick="deleteProject('${projectName}')"
-                            class="text-red-500 hover:text-red-600 px-2 py-1 rounded transition-colors duration-200">
+                <div class="flex justify-between items-center space-x-4">
+                    <h3 class="text-xl font-semibold text-gray-200 truncate flex-1" title="${projectName}">
+                        ${projectName}
+                    </h3>
+                    <button onclick="event.stopPropagation(); deleteProject('${projectName}')"
+                            class="text-red-500 hover:text-red-600 px-3 py-1.5 rounded transition-colors duration-200 flex-shrink-0">
                         Delete
                     </button>
                 </div>
             `;
-            projectsContainer.appendChild(card);
+            
+            // Add a spacer element after each card to maintain even spacing
+            const cardWrapper = document.createElement('div');
+            cardWrapper.className = 'flex-none';
+            cardWrapper.appendChild(card);
+            projectsContainer.appendChild(cardWrapper);
         });
+
+        // Add invisible spacer elements to maintain last row alignment
+        for (let i = 0; i < 2; i++) {
+            const spacer = document.createElement('div');
+            spacer.className = 'flex-none w-[500px] invisible';
+            projectsContainer.appendChild(spacer);
+        }
 
         // Clear existing content and add new projects
         while (projectList.firstChild) {
@@ -272,33 +289,55 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Make deleteProject function globally accessible
-    window.deleteProject = function(projectName) {
-        if (!confirm(`Are you sure you want to delete "${projectName}"? This cannot be undone.`)) {
+    window.deleteProject = async function(projectName) {
+        if (!confirm(`Are you sure you want to delete "${projectName}"? This action cannot be undone.`)) {
             return;
         }
 
-        showLoading(true);
-        fetch(`/api/file?path=${encodeURIComponent(projectName)}`, {
-            method: 'DELETE'
-        })
-        .then(response => {
+        try {
+            showLoading(true);
+            const response = await fetch(`/api/file?path=${encodeURIComponent(projectName)}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
             if (!response.ok) {
-                return response.json().then(data => {
-                    throw new Error(data.error || 'Failed to delete project');
-                });
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to delete project');
             }
-            return response.json();
-        })
-        .then(() => {
-            fetchProjects(); // Refresh the projects list
-        })
-        .catch(error => {
+
+            // Show success message
+            const successMessage = document.createElement('div');
+            successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg z-50';
+            successMessage.textContent = `Project "${projectName}" deleted successfully`;
+            document.body.appendChild(successMessage);
+            
+            // Remove success message after 3 seconds
+            setTimeout(() => {
+                successMessage.remove();
+            }, 3000);
+
+            // Refresh the projects list
+            await fetchProjects();
+
+        } catch (error) {
             console.error('Error deleting project:', error);
-            alert('Error deleting project: ' + error.message);
-        })
-        .finally(() => {
+            
+            // Show error message
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg z-50';
+            errorMessage.textContent = `Error deleting project: ${error.message}`;
+            document.body.appendChild(errorMessage);
+            
+            // Remove error message after 3 seconds
+            setTimeout(() => {
+                errorMessage.remove();
+            }, 3000);
+        } finally {
             showLoading(false);
-        });
+        }
     };
 
     // Helper functions
@@ -312,7 +351,32 @@ document.addEventListener('DOMContentLoaded', function() {
         if (emptyState) {
             emptyState.classList.toggle('hidden', !show);
         }
+        
+        // If showing empty state, ensure loading indicator is hidden
+        if (show) {
+            showLoading(false);
+        }
     }
+
+    // Add styles for notifications
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .fixed.top-4.right-4 {
+            animation: slideIn 0.3s ease-out;
+        }
+    `;
+    document.head.appendChild(style);
 
     // Initialize
     fetchProjects();

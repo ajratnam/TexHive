@@ -1,5 +1,22 @@
-// Initialize Socket.IO and editor variables
-var socket = io();
+// Initialize Socket.IO with reconnection options
+const socket = io({
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000
+});
+
+// Socket connection event handlers
+socket.on('connect', () => {
+    console.log('Socket connected');
+});
+
+socket.on('disconnect', () => {
+    console.log('Socket disconnected');
+});
+
+socket.on('connect_error', (error) => {
+    console.error('Socket connection error:', error);
+});
 
 // Join project room when connected
 const params = new URLSearchParams(window.location.search);
@@ -717,91 +734,62 @@ function closeCollaboratorsDialog() {
 }
 
 // Listen for access level changes
-socket.on('access_level_changed', function(data) {
-    const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
-    const currentUserId = sessionData.uid;
-    
-    // If this event is for the current user
-    if (data.collaboratorUid === currentUserId) {
-        userAccessLevel = data.newAccessLevel;
+socket.on('access_level_changed', async function(data) {
+    try {
+        // Get current user's ID
+        const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
+        const currentUserId = sessionData.uid;
         
-        // Get the current content before reinitializing
-        const currentContent = editor ? editor.getValue() : document.querySelector('#editor-container pre')?.textContent || '';
-        
-        // Clear the editor container
-        const editorContainer = document.getElementById('editor-container');
-        editorContainer.innerHTML = '';
-        
-        if (userAccessLevel === 'viewer') {
-            // For viewers, display the content in read-only format
-            editorContainer.innerHTML = `
-                <div class="h-full bg-[#1e1e1e] text-white p-4 overflow-auto">
-                    <div class="mb-4 pb-2 border-b border-gray-700">
-                        <h2 class="text-lg font-semibold">${currentFile}</h2>
-                        <div class="flex items-center text-sm text-gray-400">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                            </svg>
-                            View-Only Access
-                        </div>
-                    </div>
-                    <pre class="font-mono whitespace-pre-wrap">${currentContent}</pre>
-                </div>
-            `;
-            editor = null; // Clear the editor instance
+        if (data.collaboratorUid === currentUserId) {
+            console.log('Access level changed for current user:', data.newAccessLevel);
+            
+            // Show notification to the user
+            const notification = document.createElement('div');
+            notification.className = 'fixed top-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+            notification.innerHTML = `Your access level has been changed to: ${data.newAccessLevel}`;
+            document.body.appendChild(notification);
+            
+            // Remove notification after 3 seconds
+            setTimeout(() => notification.remove(), 3000);
+            
+            // Reload the page to apply new permissions
+            window.location.reload();
         } else {
-            // For editors, reinitialize the Monaco editor
-            editor = monaco.editor.create(editorContainer, {
-                value: currentContent,
-                language: 'latex',
-                theme: window.initialMonacoTheme,
-                minimap: {enabled: false},
-                automaticLayout: false,
-                readOnly: false
-            });
-
-            // Set up content change handlers
-            const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
-            const userId = sessionData.uid;
-            const params = new URLSearchParams(window.location.search);
-            const project = params.get('project');
-
-            editor.getModel().onDidChangeContent(() => {
-                socket.emit('update_text', { 
-                    content: editor.getValue(), 
-                    path: currentFile, 
-                    uid: userId, 
-                    project: project 
-                });
-                if (realtimeEnabled) {
-                    clearTimeout(compileTimeout);
-                    compileTimeout = setTimeout(compileLatex, 1000);
-                }
-            });
-        }
-        
-        // Apply access restrictions
-        applyAccessRestrictions();
-        
-        // Show notification
-        const notification = document.createElement('div');
-        notification.className = 'fixed top-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-        notification.innerHTML = `Your access level has been changed to: ${data.newAccessLevel}`;
-        document.body.appendChild(notification);
-        setTimeout(() => notification.remove(), 3000);
-    }
-    
-    // Update the collaborators dialog if it's open
-    const dialog = document.getElementById('collaborators-dialog');
-    if (dialog && dialog.open) {
-        const collaboratorElement = dialog.querySelector(`[data-uid="${data.collaboratorUid}"]`);
-        if (collaboratorElement) {
-            const accessSpan = collaboratorElement.querySelector('.access-level');
-            if (accessSpan) {
-                accessSpan.textContent = data.newAccessLevel === 'viewer' ? 'Viewer' : 'Editor';
+            // If the collaborators dialog is open, refresh it
+            const dialog = document.getElementById('collaborators-dialog');
+            if (dialog && dialog.open) {
+                await showCollaborators();
             }
         }
+    } catch (error) {
+        console.error('Error handling access level change:', error);
+    }
+});
+
+// Listen for collaborator removal
+socket.on('collaborator_removed', async function(data) {
+    try {
+        // Get current user's ID
+        const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
+        const currentUserId = sessionData.uid;
+        
+        if (data.collaboratorUid === currentUserId) {
+            console.log('User has been removed from project');
+            
+            // Show notification to the user
+            alert('You have been removed from this project: ' + data.projectName);
+            
+            // Redirect to home page
+            window.location.href = '/';
+        } else {
+            // If the collaborators dialog is open, refresh it
+            const dialog = document.getElementById('collaborators-dialog');
+            if (dialog && dialog.open) {
+                await showCollaborators();
+            }
+        }
+    } catch (error) {
+        console.error('Error handling collaborator removal:', error);
     }
 });
 
@@ -831,15 +819,6 @@ async function updateCollaboratorAccess(shareHash, collaboratorUid, accessLevel)
         if (!response.ok) {
             throw new Error('Failed to update collaborator access');
         }
-
-        // Update the UI without refreshing the entire collaborators list
-        const collaboratorElement = document.querySelector(`[data-uid="${collaboratorUid}"]`);
-        if (collaboratorElement) {
-            const accessSpan = collaboratorElement.querySelector('.access-level');
-            if (accessSpan) {
-                accessSpan.textContent = accessLevel === 'viewer' ? 'Viewer' : 'Editor';
-            }
-        }
     } catch (error) {
         console.error('Error updating collaborator access:', error);
         alert('Failed to update collaborator access. Please try again.');
@@ -864,19 +843,27 @@ async function removeCollaborator(shareHash, collaboratorUid) {
             throw new Error('Failed to remove collaborator');
         }
 
+        // Get project name from URL
+        const projectName = new URLSearchParams(window.location.search).get('project');
+
         // Emit socket event for real-time update
         socket.emit('collaborator_removed', {
             shareHash: shareHash,
             collaboratorUid: collaboratorUid,
-            projectName: new URLSearchParams(window.location.search).get('project')
+            projectName: projectName
         });
 
-        // Refresh the collaborators dialog
-        const dialog = document.getElementById('collaborators-dialog');
-        if (dialog) {
-            // Close and reopen the dialog with updated data
-            dialog.close();
-            await showCollaborators();
+        // Remove the collaborator's element from the UI immediately
+        const collaboratorElement = document.querySelector(`div[data-uid="${collaboratorUid}"]`);
+        if (collaboratorElement) {
+            collaboratorElement.remove();
+        }
+
+        // Check if there are any collaborators left
+        const collaboratorsList = document.getElementById('collaborators-list');
+        const noCollaborators = document.getElementById('no-collaborators');
+        if (collaboratorsList && collaboratorsList.children.length === 0) {
+            noCollaborators.style.display = 'block';
         }
     } catch (error) {
         console.error('Error removing collaborator:', error);
@@ -1014,24 +1001,6 @@ async function showCollaborators() {
         alert('Failed to load collaborators. Please try again.');
     }
 }
-
-// Listen for collaborator removed event
-socket.on('collaborator_removed', function(data) {
-    // If the current user was removed, redirect them to the projects page
-    const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
-    const currentUserId = sessionData.uid;
-    
-    if (data.collaboratorUid === currentUserId) {
-        alert('You have been removed from this project.');
-        window.location.href = '/projects';
-    } else {
-        // If the collaborators dialog is open, refresh it
-        const dialog = document.getElementById('collaborators-dialog');
-        if (dialog && dialog.open) {
-            showCollaborators();
-        }
-    }
-});
 
 // Add this CSS to make the dialog look better
 const style = document.createElement('style');

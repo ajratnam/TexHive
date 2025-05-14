@@ -252,9 +252,19 @@ nav {
 /* Hide Editor specific controls in header when on project page */
 body.on-projects-page #compile-btn,
 body.on-projects-page #share-btn,
-body.on-projects-page #realtime-toggle + label, /* Hide toggle and its label */
-body.on-projects-page #ignore-warnings + label { /* Hide toggle and its label */
+body.on-projects-page #collaborators-btn,
+body.on-projects-page #realtime-toggle,
+body.on-projects-page #realtime-toggle + label,
+body.on-projects-page #ignore-warnings,
+body.on-projects-page #ignore-warnings + label,
+body.on-projects-page label:has(#realtime-toggle),
+body.on-projects-page label:has(#ignore-warnings) {
   display: none;
+}
+
+/* Ensure theme selector is always visible */
+#theme-selector {
+  display: inline-block !important;
 }
 
 /* Optional: Style the New Project button further if needed */
