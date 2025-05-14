@@ -34,6 +34,15 @@ services:
     networks:
       - texhive-net
 
+  humanize-service:
+    image: ajratnam/humanize-service:latest # nishithp/humanize-service:latest
+    build: 
+      context: ./microservices/humanize-service
+    ports:
+      - "8003:8003"
+    networks:
+      - texhive-net
+
 networks:
   texhive-net:
     driver: bridge
