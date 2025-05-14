@@ -5,26 +5,48 @@
 {% block content %}
 <style>
     #projectName:focus {
-        color: #e5e7eb !important;
+        color: var(--text-color) !important;
     }
     #projectName::placeholder {
         opacity: 0.6;
-        color: #9ca3af;
+        color: var(--text-color);
     }
     .dark-card {
-        background-color: #1f2937;
-        border: 1px solid #374151;
+        background-color: var(--header-color);
+        border: 1px solid var(--gutter-color);
         transition: all 0.2s ease-in-out;
         width: 350px; /* Fixed width */
     }
     .dark-card:hover {
-        background-color: #2d3748;
+        background-color: var(--bg-color);
         transform: translateY(-2px);
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
+
+    /* Theme-aware modal styles */
+    #templateModal .modal-content {
+        background-color: var(--bg-color);
+        border: 1px solid var(--gutter-color);
+    }
+
+    #templateSelect {
+        background-color: var(--header-color);
+        color: var(--text-color);
+        border: 1px solid var(--gutter-color);
+    }
+
+    #templateSelect option {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+    }
+
+    #templateDescription {
+        color: var(--text-color);
+        opacity: 0.8;
+    }
 </style>
 <div class="w-full px-6 py-6">
-    <h1 class="text-3xl font-bold mb-6 text-white">Projects</h1>
+    <h1 class="text-3xl font-bold mb-6" style="color: var(--text-color)">Projects</h1>
 
     <!-- Create New Project Button -->
     <button id="newProjectBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-6">
@@ -33,10 +55,10 @@
 
     <!-- Template Selection Modal -->
     <div id="templateModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center">
-        <div class="bg-gray-800 p-8 rounded-lg shadow-lg w-[500px] border border-gray-700">
+        <div class="modal-content p-8 rounded-lg shadow-lg w-[500px]">
             <div class="flex justify-content items-center mb-6">
-                <h2 class="text-2xl font-bold text-white">Create New Project</h2>
-                <button id="closeModalBtn" class="text-gray-400 hover:text-gray-200">
+                <h2 class="text-2xl font-bold" style="color: var(--text-color)">Create New Project</h2>
+                <button id="closeModalBtn" style="color: var(--text-color); opacity: 0.7;" class="hover:opacity-100">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
@@ -45,11 +67,11 @@
 
             <!-- Template Selection -->
             <div class="mb-6">
-                <label class="block text-gray-300 text-sm font-bold mb-2" for="templateSelect">
+                <label class="block text-sm font-bold mb-2" style="color: var(--text-color)" for="templateSelect">
                     Template
                 </label>
                 <div class="relative">
-                    <select id="templateSelect" class="block appearance-none w-full bg-gray-700 border border-gray-600 rounded px-4 py-3 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-200">
+                    <select id="templateSelect" class="block appearance-none w-full rounded px-4 py-3 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="" disabled selected>Choose your template</option>
                         <option value="ieee">IEEE Conference</option>
                         <option value="ieee-journal">IEEE Journal</option>
@@ -59,22 +81,23 @@
                         <option value="thesis">Thesis</option>
                         <option value="blank">Blank Project</option>
                     </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style="color: var(--text-color)">
                         <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
                             <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
                         </svg>
                     </div>
                 </div>
-                <p class="mt-2 text-sm text-gray-400" id="templateDescription"></p>
+                <p class="mt-2 text-sm" id="templateDescription"></p>
             </div>
 
             <!-- Project Name Input -->
             <div class="mb-6">
-                <label class="block text-gray-300 text-sm font-bold mb-2" for="projectName">
+                <label class="block text-sm font-bold mb-2" style="color: var(--text-color)" for="projectName">
                     Project Name
                 </label>
                 <input type="text" id="projectName" 
-                    class="block w-full bg-gray-700 border border-gray-600 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-medium text-gray-200 placeholder-gray-400 transition-all duration-200" 
+                    class="block w-full rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-medium transition-all duration-200" 
+                    style="background-color: var(--header-color); color: var(--text-color); border: 1px solid var(--gutter-color);"
                     placeholder="Enter your project name"
                     autocomplete="off"
                     spellcheck="false">
@@ -82,7 +105,8 @@
 
             <!-- Buttons -->
             <div class="flex justify-end">
-                <button id="cancelBtn" class="bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-2 px-4 rounded mr-2">
+                <button id="cancelBtn" class="hover:bg-opacity-80 font-bold py-2 px-4 rounded mr-2" 
+                    style="background-color: var(--header-color); color: var(--text-color)">
                     Cancel
                 </button>
                 <button id="createProjectBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
@@ -93,15 +117,15 @@
     </div>
 
     <!-- Projects List -->
-    <div id="project-list" class="flex flex-wrap justify-between gap-y-5 w-full">
+    <div id="project-list" class="flex flex-wrap gap-6 justify-start w-full">
         <!-- Loading indicator -->
         <div id="loading-indicator" class="w-full flex justify-center items-center py-6 hidden">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2" style="border-color: var(--text-color)"></div>
         </div>
         
         <!-- Empty state -->
         <div id="empty-state" class="w-full text-center py-6 hidden">
-            <p class="text-gray-400">No projects yet. Create your first project!</p>
+            <p style="color: var(--text-color)">No projects yet. Create your first project!</p>
         </div>
     </div>
 </div>
@@ -236,7 +260,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderProjects(projects) {
         console.log('Starting to render projects:', projects);
         const projectsContainer = document.createElement('div');
-        projectsContainer.className = 'flex flex-wrap justify-between gap-y-5 w-full';
+        projectsContainer.className = 'flex flex-wrap gap-6 justify-start w-full';
         
         if (!projects || projects.length === 0) {
             console.log('No projects found');
@@ -256,7 +280,7 @@ document.addEventListener('DOMContentLoaded', function() {
             card.onclick = () => window.location.href = `/editor?project=${encodeURIComponent(projectName)}`;
             card.innerHTML = `
                 <div class="flex justify-between items-center space-x-4">
-                    <h3 class="text-xl font-semibold text-gray-200 truncate flex-1" title="${projectName}">
+                    <h3 class="text-xl font-semibold truncate flex-1" style="color: var(--text-color)" title="${projectName}">
                         ${projectName}
                     </h3>
                     <button onclick="event.stopPropagation(); deleteProject('${projectName}')"
@@ -266,7 +290,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
             
-            // Add a spacer element after each card to maintain even spacing
             const cardWrapper = document.createElement('div');
             cardWrapper.className = 'flex-none';
             cardWrapper.appendChild(card);
@@ -276,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add invisible spacer elements to maintain last row alignment
         for (let i = 0; i < 2; i++) {
             const spacer = document.createElement('div');
-            spacer.className = 'flex-none w-[500px] invisible';
+            spacer.className = 'flex-none w-[350px] invisible';
             projectsContainer.appendChild(spacer);
         }
 

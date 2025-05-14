@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="theme-root">
 <head>
   {% include 'partials/head.html' %}
 </head>
-<body class="h-screen {% block body_class %}{% endblock %}">
+<body class="min-h-screen bg-[--bg-color] text-[--text-color] {% block body_class %}{% endblock %}">
   {% include 'partials/header.html' %}
-  <div id="main-container" class="flex h-[calc(100vh-64px)]">
+  <div id="main-container" class="flex min-h-[calc(100vh-64px)] bg-[--bg-color]">
     {% block content %}{% endblock %}
   </div>
 

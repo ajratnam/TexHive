@@ -21,21 +21,85 @@
     }
     window.initialMonacoTheme = initialMonacoTheme;
 
-    // Remove any previously set theme classes
-    document.documentElement.classList.remove(
-        "light-theme",
-        "solarized-theme",
-        "dracula-theme",
-        "monokai-theme",
-        "nord-theme",
-        "gruvbox-theme",
-        "cobalt-theme"
-    );
-    if (savedTheme !== "dark") {
-        document.documentElement.classList.add(savedTheme + "-theme");
+    // Function to remove all theme classes
+    function removeAllThemeClasses(element) {
+        element.classList.remove(
+            "light-theme",
+            "solarized-theme",
+            "dracula-theme",
+            "monokai-theme",
+            "nord-theme",
+            "gruvbox-theme",
+            "cobalt-theme"
+        );
     }
 
-    // Expose function to update the Monaco editor theme.
+    // Function to apply theme to an element
+    function applyThemeToElement(element, theme) {
+        removeAllThemeClasses(element);
+        if (theme !== "dark") {
+            element.classList.add(theme + "-theme");
+        }
+    }
+
+    // Initial theme setup - apply to both html and body for consistency
+    const htmlRoot = document.documentElement;
+    const body = document.body;
+    
+    applyThemeToElement(htmlRoot, savedTheme);
+    if (body) {
+        applyThemeToElement(body, savedTheme);
+    }
+
+    // Expose function to apply the selected theme
+    window.applyTheme = function(theme) {
+        // Apply theme to both html and body elements
+        applyThemeToElement(htmlRoot, theme);
+        if (body) {
+            applyThemeToElement(body, theme);
+        }
+        
+        // Update Monaco editor if it exists
+        window.updateEditorTheme(theme);
+        
+        // Store the theme preference
+        localStorage.setItem("theme", theme);
+        
+        // Dispatch a custom event for other components to react to theme changes
+        window.dispatchEvent(new CustomEvent('themechange', { detail: { theme } }));
+    };
+
+    // Function to initialize theme selector
+    function initializeThemeSelector() {
+        const themeSelector = document.getElementById("theme-selector");
+        if (!themeSelector) return;
+        
+        // Set initial value
+        themeSelector.value = savedTheme;
+        
+        // Add change listener
+        themeSelector.addEventListener("change", () => {
+            const selectedTheme = themeSelector.value;
+            window.applyTheme(selectedTheme);
+        });
+    }
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeThemeSelector);
+    } else {
+        initializeThemeSelector();
+    }
+
+    // Re-apply theme when page becomes visible (handles browser back/forward cache)
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            const currentTheme = localStorage.getItem('theme') || 'dark';
+            window.applyTheme(currentTheme);
+        }
+    });
+
+    // Expose Monaco editor theme update function
     window.updateEditorTheme = function(theme) {
         if (!window.editor) return;
         if (theme === 'light') {
@@ -140,35 +204,4 @@
             monaco.editor.setTheme('vs-dark');
         }
     };
-
-    // Expose function to apply the selected theme (adjusting both the document’s classes and the editor).
-    window.applyTheme = function(theme) {
-        document.body.classList.remove(
-            "light-theme",
-            "solarized-theme",
-            "dracula-theme",
-            "monokai-theme",
-            "nord-theme",
-            "gruvbox-theme",
-            "cobalt-theme"
-        );
-        if (theme !== "dark") {
-            document.body.classList.add(theme + "-theme");
-        }
-        window.updateEditorTheme(theme);
-    };
-
-    // Wait for the DOM to be ready to attach event listeners.
-    document.addEventListener("DOMContentLoaded", () => {
-        const themeSelector = document.getElementById("theme-selector");
-        const savedTheme = localStorage.getItem("theme") || "dark";
-        window.applyTheme(savedTheme);
-        themeSelector.value = savedTheme;
-
-        themeSelector.addEventListener("change", () => {
-            const selectedTheme = themeSelector.value;
-            window.applyTheme(selectedTheme);
-            localStorage.setItem("theme", selectedTheme);
-        });
-    });
 })();
