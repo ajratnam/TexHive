@@ -30,25 +30,47 @@ def register_socket_events(socketio, app):
             'uid': uid
         }, room=room, include_self=False)  # Don't send back to sender
 
-    @socketio.on('update_access_level')
-    def handle_access_level_update(data):
-        # Get project name from data
+    @socketio.on('collaborator_removed')
+    def handle_collaborator_removed(data):
         project_name = data.get('projectName')
         if project_name:
-            # Use project name as room for targeted broadcasting
+            # Broadcast to all clients in the project room
             room = f"project_{project_name}"
-            # Broadcast the access level change to all clients in the project room
-            emit('access_level_changed', {
+            emit('collaborator_removed', {
                 'collaboratorUid': data.get('collaboratorUid'),
-                'newAccessLevel': data.get('newAccessLevel'),
-                'projectName': project_name
+                'projectName': project_name,
+                'shareHash': data.get('shareHash')
             }, room=room, broadcast=True)
         else:
             # Fallback to broadcasting to all clients if no project name
-            emit('access_level_changed', {
+            emit('collaborator_removed', {
                 'collaboratorUid': data.get('collaboratorUid'),
-                'newAccessLevel': data.get('newAccessLevel')
+                'shareHash': data.get('shareHash')
             }, broadcast=True)
+
+    @socketio.on('update_access_level')
+    def handle_access_level_update(data):
+        project_name = data.get('projectName')
+        collaborator_uid = data.get('collaboratorUid')
+        new_access_level = data.get('newAccessLevel')
+        
+        if not all([project_name, collaborator_uid, new_access_level]):
+            return
+            
+        # Broadcast to all clients in the project room
+        room = f"project_{project_name}"
+        emit('access_level_changed', {
+            'collaboratorUid': collaborator_uid,
+            'newAccessLevel': new_access_level,
+            'projectName': project_name
+        }, room=room, broadcast=True)
+        
+        # Also broadcast to all rooms to ensure the user gets the update even if not in the project room
+        emit('access_level_changed', {
+            'collaboratorUid': collaborator_uid,
+            'newAccessLevel': new_access_level,
+            'projectName': project_name
+        }, broadcast=True)
 
     @socketio.on('join_project')
     def on_join_project(data):
