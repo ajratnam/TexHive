@@ -90,6 +90,13 @@ function showContextMenu(x, y) {
 document.getElementById('context-menu').addEventListener('click', function(e) {
   const action = e.target.getAttribute('data-action');
   if (!action || !contextMenuTarget) return;
+  
+  if (userAccessLevel === 'viewer') {
+    alert('You do not have permission to modify files in view-only mode.');
+    hideContextMenu();
+    return;
+  }
+
   const itemPath = contextMenuTarget.dataset.path;
   if (action === "rename") {
     const newName = prompt("Enter new name:", contextMenuTarget.textContent.trim());
@@ -234,6 +241,10 @@ function renderFileTree(tree, container) {
 
 // New File button event handler
 document.getElementById('new-file-button').addEventListener('click', function () {
+  if (userAccessLevel === 'viewer') {
+    alert('You do not have permission to create new files in view-only mode.');
+    return;
+  }
   const newFileName = prompt("Enter new file name (e.g., newfile.tex):");
   if (newFileName) {
     fetch('/api/file', {
@@ -255,6 +266,10 @@ document.getElementById('new-file-button').addEventListener('click', function ()
 
 // New Folder button event handler
 document.getElementById('new-folder-button').addEventListener('click', function () {
+  if (userAccessLevel === 'viewer') {
+    alert('You do not have permission to create new folders in view-only mode.');
+    return;
+  }
   let basePath = "";
   const selected = document.querySelector('#file-explorer .selected');
   if (selected && selected.classList.contains('folder')) {
@@ -372,7 +387,7 @@ async function checkUserAccess() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 projectName: project,
-                projectPath: project
+                projectPath: project 
             })
         });
         
@@ -428,10 +443,9 @@ async function checkUserAccess() {
 
         // Hide/show buttons based on access level
         if (userAccessLevel === 'viewer') {
-            // Hide buttons/features that viewers shouldn't access
-            document.getElementById('new-file-button')?.classList.add('hidden');
-            document.getElementById('new-folder-button')?.classList.add('hidden');
-            document.getElementById('share-btn')?.classList.add('hidden');
+            // Disable new file and folder buttons visually
+            document.getElementById('new-file-button')?.classList.add('opacity-50', 'cursor-not-allowed');
+            document.getElementById('new-folder-button')?.classList.add('opacity-50', 'cursor-not-allowed');
             
             // Disable realtime toggle
             const realtimeToggle = document.getElementById('realtime-toggle');
@@ -454,9 +468,9 @@ function applyAccessRestrictions() {
         // Disable editing
         editor.updateOptions({ readOnly: true });
         
-        // Hide buttons/features that viewers shouldn't access
-        document.getElementById('new-file-button')?.classList.add('hidden');
-        document.getElementById('new-folder-button')?.classList.add('hidden');
+        // Disable new file and folder buttons visually
+        document.getElementById('new-file-button')?.classList.add('opacity-50', 'cursor-not-allowed');
+        document.getElementById('new-folder-button')?.classList.add('opacity-50', 'cursor-not-allowed');
         
         // Disable context menu for files/folders
         const fileExplorer = document.getElementById('file-explorer');
@@ -465,9 +479,6 @@ function applyAccessRestrictions() {
                 item.removeEventListener('contextmenu', showContextMenu);
             });
         }
-        
-        // Hide share button (viewers can't share)
-        document.getElementById('share-btn')?.classList.add('hidden');
         
         // Disable realtime toggle (viewers can't control realtime)
         const realtimeToggle = document.getElementById('realtime-toggle');
@@ -479,10 +490,9 @@ function applyAccessRestrictions() {
         // Enable all features for editors and owners
         editor.updateOptions({ readOnly: false });
         
-        // Show all buttons/features
-        document.getElementById('new-file-button')?.classList.remove('hidden');
-        document.getElementById('new-folder-button')?.classList.remove('hidden');
-        document.getElementById('share-btn')?.classList.remove('hidden');
+        // Enable new file and folder buttons visually
+        document.getElementById('new-file-button')?.classList.remove('opacity-50', 'cursor-not-allowed');
+        document.getElementById('new-folder-button')?.classList.remove('opacity-50', 'cursor-not-allowed');
         
         // Enable realtime toggle
         const realtimeToggle = document.getElementById('realtime-toggle');
@@ -848,6 +858,44 @@ async function updateCollaboratorAccess(shareHash, collaboratorUid, accessLevel)
     }
 }
 
+// Function to remove collaborator
+async function removeCollaborator(shareHash, collaboratorUid) {
+    try {
+        const response = await fetch('/api/project/collaborator', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                hash: shareHash,
+                collaboratorUid: collaboratorUid
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to remove collaborator');
+        }
+
+        // Emit socket event for real-time update
+        socket.emit('collaborator_removed', {
+            shareHash: shareHash,
+            collaboratorUid: collaboratorUid,
+            projectName: new URLSearchParams(window.location.search).get('project')
+        });
+
+        // Refresh the collaborators dialog
+        const dialog = document.getElementById('collaborators-dialog');
+        if (dialog) {
+            // Close and reopen the dialog with updated data
+            dialog.close();
+            await showCollaborators();
+        }
+    } catch (error) {
+        console.error('Error removing collaborator:', error);
+        alert('Failed to remove collaborator. Please try again.');
+    }
+}
+
 // Function to show collaborators dialog
 async function showCollaborators() {
     const dialog = document.getElementById('collaborators-dialog');
@@ -942,6 +990,21 @@ async function showCollaborators() {
                     });
                     
                     accessDiv.appendChild(select);
+
+                    // Add remove button for owner
+                    const removeButton = document.createElement('button');
+                    removeButton.className = 'ml-2 text-gray-500 hover:text-gray-300 transition-colors duration-200 focus:outline-none';
+                    removeButton.innerHTML = `
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    `;
+                    removeButton.addEventListener('click', () => {
+                        if (confirm('Are you sure you want to remove this collaborator?')) {
+                            removeCollaborator(shareHash, collab.uid);
+                        }
+                    });
+                    accessDiv.appendChild(removeButton);
                 } else {
                     const accessSpan = document.createElement('span');
                     accessSpan.className = 'text-gray-400 access-level';
@@ -963,6 +1026,24 @@ async function showCollaborators() {
         alert('Failed to load collaborators. Please try again.');
     }
 }
+
+// Listen for collaborator removed event
+socket.on('collaborator_removed', function(data) {
+    // If the current user was removed, redirect them to the projects page
+    const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
+    const currentUserId = sessionData.uid;
+    
+    if (data.collaboratorUid === currentUserId) {
+        alert('You have been removed from this project.');
+        window.location.href = '/projects';
+    } else {
+        // If the collaborators dialog is open, refresh it
+        const dialog = document.getElementById('collaborators-dialog');
+        if (dialog && dialog.open) {
+            showCollaborators();
+        }
+    }
+});
 
 // Add this CSS to make the dialog look better
 const style = document.createElement('style');

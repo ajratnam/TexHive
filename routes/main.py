@@ -301,32 +301,63 @@ def get_collaborators(uid):
         'owner': project_data.get('owner', {})
     })
 
-@bp.route('/api/project/collaborator', methods=['PUT'])
+@bp.route('/api/project/collaborator', methods=['PUT', 'DELETE'])
 @login_required
 def update_collaborator_access(uid):
     data = request.get_json()
     share_hash = data.get('hash')
     collaborator_uid = data.get('collaboratorUid')
-    access_level = data.get('accessLevel')
     
-    if not all([share_hash, collaborator_uid, access_level]) or access_level not in ['viewer', 'editor']:
-        return jsonify({'error': 'Invalid request data'}), 400
-        
-    shared_data = get_shared_data()
-    project_data = shared_data.get(share_hash)
-    
-    if not project_data:
-        return jsonify({'error': 'Project not found'}), 404
-        
-    # Only owner can modify collaborator access
-    if project_data['owner']['uid'] != uid:
-        return jsonify({'error': 'Unauthorized'}), 403
-        
-    # Update collaborator access level
-    for collab in project_data['collaborators']:
-        if collab['uid'] == collaborator_uid:
-            collab['access_level'] = access_level
-            save_shared_data(shared_data)
-            return jsonify({'status': 'success'})
+    if request.method == 'DELETE':
+        if not all([share_hash, collaborator_uid]):
+            return jsonify({'error': 'Invalid request data'}), 400
             
-    return jsonify({'error': 'Collaborator not found'}), 404
+        shared_data = get_shared_data()
+        project_data = shared_data.get(share_hash)
+        
+        if not project_data:
+            return jsonify({'error': 'Project not found'}), 404
+            
+        # Only owner can remove collaborators
+        if project_data['owner']['uid'] != uid:
+            return jsonify({'error': 'Unauthorized'}), 403
+            
+        # Remove collaborator from data.json
+        project_data['collaborators'] = [c for c in project_data['collaborators'] if c['uid'] != collaborator_uid]
+        save_shared_data(shared_data)
+
+        # Remove symbolic link from collaborator's directory
+        try:
+            collaborator_dir = Config.DATA_DIR / collaborator_uid
+            project_link = collaborator_dir / project_data['name']
+            if os.path.islink(project_link):
+                os.unlink(project_link)
+        except Exception as e:
+            print(f"Error removing symbolic link: {str(e)}")
+            # Don't return error since we've already updated the data.json
+            
+        return jsonify({'status': 'success'})
+    
+    elif request.method == 'PUT':
+        access_level = data.get('accessLevel')
+        if not all([share_hash, collaborator_uid, access_level]) or access_level not in ['viewer', 'editor']:
+            return jsonify({'error': 'Invalid request data'}), 400
+            
+        shared_data = get_shared_data()
+        project_data = shared_data.get(share_hash)
+        
+        if not project_data:
+            return jsonify({'error': 'Project not found'}), 404
+            
+        # Only owner can modify collaborator access
+        if project_data['owner']['uid'] != uid:
+            return jsonify({'error': 'Unauthorized'}), 403
+            
+        # Update collaborator access level
+        for collab in project_data['collaborators']:
+            if collab['uid'] == collaborator_uid:
+                collab['access_level'] = access_level
+                save_shared_data(shared_data)
+                return jsonify({'status': 'success'})
+                
+        return jsonify({'error': 'Collaborator not found'}), 404

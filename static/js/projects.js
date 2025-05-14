@@ -1,3 +1,6 @@
+// Initialize socket connection
+const socket = io();
+
 // Function to close collaborators dialog
 function closeCollaboratorsDialog() {
     const dialog = document.getElementById('collaborators-dialog');
@@ -113,8 +116,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Function to create a single project card element ---
     function createProjectCard(project) {
         const card = document.createElement('div');
-        card.className = 'project-card';
-        card.setAttribute('data-project-name', project.name);
+        card.className = 'bg-card-bg text-text-color rounded-lg shadow-lg p-4 hover:shadow-xl transition-shadow duration-200 cursor-pointer relative';
+        card.setAttribute('data-project', project.name);
         card.setAttribute('data-project-path', project.path);
         
         const cardContent = document.createElement('div');
@@ -458,6 +461,51 @@ document.addEventListener('DOMContentLoaded', async () => {
                         });
                         
                         accessDiv.appendChild(select);
+
+                        // Add remove button
+                        const removeButton = document.createElement('button');
+                        removeButton.className = 'ml-2 text-gray-500 hover:text-gray-300 transition-colors duration-200 focus:outline-none';
+                        removeButton.innerHTML = `
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        `;
+                        removeButton.addEventListener('click', async (e) => {
+                            e.preventDefault();
+                            if (confirm('Are you sure you want to remove this collaborator?')) {
+                                try {
+                                    const response = await fetch('/api/project/collaborator', {
+                                        method: 'DELETE',
+                                        headers: {
+                                            'Content-Type': 'application/json'
+                                        },
+                                        body: JSON.stringify({
+                                            hash: shareHash,
+                                            collaboratorUid: collab.uid
+                                        })
+                                    });
+
+                                    if (!response.ok) {
+                                        throw new Error('Failed to remove collaborator');
+                                    }
+
+                                    // Emit socket event for real-time update
+                                    socket.emit('collaborator_removed', {
+                                        shareHash: shareHash,
+                                        collaboratorUid: collab.uid,
+                                        projectName: projectName
+                                    });
+
+                                    // Refresh the collaborators dialog
+                                    dialog.close();
+                                    await showCollaboratorsDialog(projectName, projectPath);
+                                } catch (error) {
+                                    console.error('Error removing collaborator:', error);
+                                    alert('Failed to remove collaborator. Please try again.');
+                                }
+                            }
+                        });
+                        accessDiv.appendChild(removeButton);
                     } else {
                         const accessSpan = document.createElement('span');
                         accessSpan.className = 'text-gray-400';
@@ -482,6 +530,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Initial Load ---
     fetchProjects();
+
+    // Listen for collaborator removed event
+    socket.on('collaborator_removed', async function(data) {
+        // If the current user was removed, remove the project from their list
+        const sessionData = JSON.parse(sessionStorage.getItem('userDetails'));
+        const currentUserId = sessionData.uid;
+        
+        if (data.collaboratorUid === currentUserId) {
+            // Remove the project card from the UI
+            const projectCard = document.querySelector(`div[data-project="${data.projectName}"]`);
+            if (projectCard) {
+                projectCard.remove();
+            }
+            // If we're in the editor, redirect to projects page
+            if (window.location.pathname === '/editor') {
+                window.location.href = '/projects';
+            }
+            // Refresh the projects list to ensure UI is up to date
+            await fetchProjects();
+            
+            // Show notification to the user
+            alert('You have been removed from the project: ' + data.projectName);
+        }
+    });
 
     // Cleanup the body class when navigating away
     window.addEventListener('beforeunload', () => {
