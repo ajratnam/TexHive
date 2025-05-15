@@ -29,6 +29,13 @@ spec:
           env:
             - name: POETRY_VIRTUALENVS_IN_PROJECT
               value: "true"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "200Mi"
+            limits:
+              cpu: "500m"
+              memory: "500Mi"
           volumeMounts:
             - name: data-volume
               mountPath: /app/data
@@ -89,6 +96,14 @@ spec:
           image: ajratnam/ref-service:latest
           ports:
             - containerPort: 8001
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "200Mi"
+            limits:
+              cpu: "500m"
+              memory: "500Mi"
+          
 ---
 # Ref Service Service
 apiVersion: v1
@@ -131,6 +146,13 @@ spec:
               mountPath: /app/data
             - name: temp-volume
               mountPath: /app/temp
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "200Mi"
+            limits:
+              cpu: "500m"
+              memory: "500Mi"
       volumes:
         - name: data-volume
           hostPath:
@@ -177,6 +199,13 @@ spec:
           image: ajratnam/humanize-service:latest
           ports:
             - containerPort: 8003
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "200Mi"
+            limits:
+              cpu: "500m"
+              memory: "500Mi"
 ---
 # Humanize Service Service
 apiVersion: v1
@@ -192,3 +221,87 @@ spec:
       port: 8003
       targetPort: 8003
   type: ClusterIP
+---
+# Autoscaler texhive
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: texhive-hpa
+  namespace: texhive
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: texhive
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+---
+# Autoscaler ref-service
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ref-service-hpa
+  namespace: texhive
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ref-service
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+---
+# Autoscaler compile-service
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: compile-service-hpa
+  namespace: texhive
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: compile-service
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+---
+# Autoscaler humanize-service
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: humanize-service-hpa
+  namespace: texhive
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: humanize-service
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
