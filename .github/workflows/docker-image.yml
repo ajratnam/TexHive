@@ -65,6 +65,6 @@ jobs:
         with:
           context: ./microservices/humanize-service
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/humanize-serive:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/humanize-service:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
