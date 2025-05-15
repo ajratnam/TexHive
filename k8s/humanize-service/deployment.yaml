@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ref-service
+  name: humanize-service
   namespace: texhive
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: ref-service
+      app: humanize-service
   template:
     metadata:
       labels:
-        app: ref-service
+        app: humanize-service
     spec:
       containers:
-        - name: ref-service
-          image: ajratnam/ref-service:latest
+        - name: humanize-service
+          image: ajratnam/humanize-service:latest
           ports:
-            - containerPort: 8001
+            - containerPort: 8003
