@@ -59,3 +59,12 @@ jobs:
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/compile-service:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
+
+      - name: Build and push humanize service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./microservices/humanize-service
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/humanize-serive:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache,mode=max

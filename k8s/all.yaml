@@ -12,7 +12,7 @@ metadata:
   name: texhive
   namespace: texhive
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: texhive
@@ -34,6 +34,10 @@ spec:
               mountPath: /app/data
             - name: temp-volume
               mountPath: /app/temp
+            - name: routes-secret
+              mountPath: /app/routes/credentials.json
+              subPath: credentials.json
+              readOnly: true
       volumes:
         - name: data-volume
           hostPath:
@@ -43,6 +47,10 @@ spec:
           hostPath:
             path: /temp
             type: DirectoryOrCreate
+        - name: routes-secret
+          secret:
+            secretName: my-creds
+
 ---
 # Texhive Service
 apiVersion: v1
@@ -67,7 +75,7 @@ metadata:
   name: ref-service
   namespace: texhive
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: ref-service
@@ -104,7 +112,7 @@ metadata:
   name: compile-service
   namespace: texhive
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: compile-service
@@ -155,7 +163,7 @@ metadata:
   name: humanize-service
   namespace: texhive
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: humanize-service
